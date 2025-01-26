@@ -1,0 +1,57 @@
+- name: "Create service group"
+  become: True
+  group:
+    name: "{{ service_user_group }}"
+    state: "present"
+
+- name: "Create service user"
+  become: True
+  user:
+    name: "{{ service_user_name }}"
+    comment: "github-middleware service user"
+    group: "{{ service_user_group }}"
+    state: "present"
+
+- name: "Create service directory"
+  become: True
+  file:
+    path: "{{ service_home }}"
+    state: "directory"
+    owner: "{{ service_user_name }}"
+    group: "{{ service_user_group }}"
+
+- name: "Copy service script"
+  become: True
+  template:
+    src: "github-middleware.py.j2"
+    dest: "{{ service_home }}/github-middleware.py"
+    owner: "{{ service_user_name }}"
+    group: "{{ service_user_group }}"
+    mode: "0755"
+
+- name: "Create middleware service"
+  become: True
+  template:
+    src: "github-middleware.service.j2"
+    dest: "/etc/systemd/system/github-middleware.service"
+    mode: "0644"
+    owner: "root"
+    group: "root"
+  notify: "Restart middleware service"
+
+- name: "Check nginx conf directory"
+  stat:
+    path: "/etc/nginx/conf.d"
+  register: nginx_conf_dir
+  failed_when: not nginx_conf_dir.stat.exists
+
+- name: "Render nginx config"
+  become: True
+  template:
+    src: "nginx.github-middleware.conf.j2"
+    dest: "/etc/nginx/conf.d/github-middleware.conf"
+    mode: "0444"
+    owner: "root"
+    group: "root"
+  when: nginx_conf_dir.stat.exists and nginx_conf_dir.stat.isdir
+  notify: "Restart nginx service"

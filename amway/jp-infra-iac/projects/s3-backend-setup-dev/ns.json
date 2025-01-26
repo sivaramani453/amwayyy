@@ -1,0 +1,20 @@
+{
+  "Comment": "Update record to add new NS record",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "automation.preprod.jp.amway.net.",
+        "Type": "NS", "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "ns-553.awsdns-05.net." },
+          {"Value": "ns-77.awsdns-09.com."},
+          {"Value": "ns-1067.awsdns-05.org."},
+          {"Value": "ns-1650.awsdns-14.co.uk."}
+
+        ]
+      }
+    }
+  ]
+}

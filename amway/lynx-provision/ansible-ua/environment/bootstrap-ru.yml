@@ -1,0 +1,206 @@
+---
+# Apply common configuration
+- hosts: all
+  vars:
+    ## oracle-java
+    transport: "web"
+    transport_web: "https://nexus.hybris.eia.amway.net/repository/static-files/static-dev/jre-8u171-linux-x64.tar.gz"
+    ## h-up
+    htools_username: "hybris"
+    htools_groupname: "hybris"
+    htools_upload_dir: "/opt"
+    htools_purge_hybris_home: True
+    htools_legacy_structure: True
+    htools_artifact_storage: "https://nexus.hybris.eia.amway.net/service/rest/repository/browse/aweu-eia"
+    hybris_env_ant_opts: "-Xmx1g -Dfile.encoding=UTF-8"
+    hotfolder_root_path: "/opt/hotfolder"
+    hybris_user_password: "$1$SomeSalt$ZPlQbPwkyCQJ01vGNIRNE0"
+    hybrisd_service_startup_delay: 30
+    sshd:
+      Match:
+        - Condition: "user {{ htools_username }}"
+          ForceCommand: "internal-sftp"
+          PasswordAuthentication: yes
+          X11Forwarding: no
+          AllowTcpForwarding: no
+          PermitTunnel: no
+          ChrootDirectory: "{{ hotfolder_root_path }}"
+    artifact_storage_ru: "https://nexus.hybris.eia.amway.net/service/rest/repository/browse/aweu-eia-ru"
+    ## nodejs
+    nodejs_branch: 12
+    nodejs_version: "12.13.0"
+    build_tools: True
+    ## solr
+    solr_cloud: true
+    solr_version: "7.1.0"
+    solr_dest_main_path: "/opt"
+    solr_dest_solr_path: "{{ solr_dest_main_path }}/solr-{{ solr_version }}"
+    solr_java_xms: "2G"
+    solr_java_xmx: "2G"
+    solr_intergrations: "hybris"
+    solr_insh_default: "/etc/default/solr.in.sh"
+    solr_base_path: "/var/solr"
+    ## zabbix-agent
+    zabbix_agent_server: "10.130.115.160,zabbix.hybris.eia.amway.net"
+    zabbix_agent_serveractive: "10.130.115.160,zabbix.hybris.eia.amway.net"
+    zabbix_agent_hostname: "{{ ansible_default_ipv4.address }}"
+    ## filebeat
+    filebeat_version: 6.5.0
+    filebeat_node_name: "filebeat"
+    filebeat_output: "elasticsearch"
+    es:
+      host: https://vpc-aws-elasticsearch-5unizluspnic6n5zudjomi7eam.eu-central-1.es.amazonaws.com:443
+      port: 443
+    filebeat_inputs:
+      - name: hybris
+        paths:
+          - '/opt/hybris/log/tomcat/console*.log'
+        fields:
+          logtype: hybris
+          index_name: hybris-console
+      - name: access
+        paths:
+           - '/opt/hybris/log/tomcat/access*.log'
+        fields:
+          logtype: access
+          index_name: hybris-access
+    ## zookeeper
+    zookeeper_version: 3.4.13
+    zookeeper_url: "http://archive.apache.org/dist/zookeeper/zookeeper-{{zookeeper_version}}/zookeeper-{{zookeeper_version}}.tar.gz"
+    client_port: 2181
+    init_limit: 5
+    sync_limit: 2
+    tick_time: 2000
+    zookeeper_cluster_ports: "2888:3888"
+    data_dir: "/var/lib/zookeeper"
+    log_dir: "/var/log/zookeeper"
+    zookeeper_dir: "/opt/zookeeper"
+    zookeeper_conf_dir: "{{ zookeeper_dir }}"
+    zookeeper_tarball_dir: "/opt/"
+    zookeeper_hosts:
+    - host: "127.0.0.1"
+      id: 1
+    - host: "127.0.0.2"
+      id: 2
+    - host: "127.0.0.3"
+      id: 3
+    ZK_HOSTS: "{% for host in zookeeper_hosts %}{{ host.host }}:{{ client_port }}{% if not loop.last %},{% endif %}{% endfor %}"
+  remote_user: root
+
+# Just to make things easy
+  pre_tasks:
+    - name: "Disable Selinux"
+      become: True
+      selinux:
+        state: "disabled"
+
+  roles:
+  - role: '../roles/lean_delivery.java'
+  - role: '../roles/lean_delivery.hybris_bootstrap_node'
+  - role: '../roles/lean_delivery.mysql'
+    mysql_root_password: "LKJnk3542390jMJhoipjmrg"
+    mysql_root_username: "root"
+    mysql_user_home: "/home/centos"
+    mysql_user_name: "centos"
+    mysql_user_password: "centos"
+    mysql_databases:
+      - name: "hybris"
+    mysql_users:
+      - name: "hybris"
+        host: ""
+        password: "hybris"
+        priv: "hybris.*:ALL,GRANT"
+    mysql_daemon: "mysqld"
+    mysql_version: "5.6"
+    mysql_max_allowed_packet: "16384K"
+    mysql_query_cache_type: "1"
+    mysql_innodb_flush_log_at_trx_commit: "0"
+    mysql_innodb_buffer_pool_size: "{{ ((ansible_memtotal_mb-8192)*0.8)|int|abs }}M"
+    mysql_max_connections: "400"
+    mysql_key_buffer_size: "81920K"
+    mysql_read_buffer_size: "1280K"
+    mysql_table_open_cache: "400"
+    mysql_slow_query_time: "10"
+    mysql_log_error: "/var/log/mysqld.log"
+    additional_parameters:
+      - name: lc-messages-dir
+        value: "/usr/share/mysql"
+      - name: thread_stack
+        value: "192K"
+      - name: character_set_server
+        value: "utf8"
+      - name: sync_binlog
+        value: "0"
+      - name: transaction_isolation
+        value: "REPEATABLE-READ"
+      - name: innodb_buffer_pool_instances
+        value: "8"
+      - name: innodb_purge_threads
+        value: "4"
+      - name: innodb_flush_method
+        value: "O_DIRECT"
+      - name: innodb_io_capacity_max
+        value: "300"
+      - name: innodb_io_capacity
+        value: "250"
+      - name: general_log
+        value: "0"
+  - role: '../roles/lean_delivery.nodejs'      
+  - role: '../roles/solr-standalone'
+  - role: '../roles/lean_delivery.zabbix_agent'
+  - role: '../roles/filebeat-multiline'
+  - role: '../roles/ansibleshipyard.ansible-zookeeper'
+    become: True
+
+# Post-install configuration
+  post_tasks:
+    - name: "Setup hybris user password"
+      become: True
+      user: 
+        name: "{{ htools_username }}"
+        password: "{{ hybris_user_password }}"
+
+    - name: "Create hotfolder root directory"
+      become: True
+      file:
+        path: "{{ hotfolder_root_path }}"
+        state: "directory"
+        owner: "root"
+        group: "root"
+        mode: "0755"
+
+    - name: "Create hotfolder directory"
+      become: True
+      file:
+        path: "{{ hotfolder_root_path }}/amway"
+        state: "directory"
+        owner: "{{ htools_username }}"
+        group: "{{ htools_groupname }}"
+        mode: "0755"
+
+    - name: "Disable mysql autostart"
+      service:
+        name: "mysqld"
+        state: "stopped"
+        enabled: False
+      become: True
+
+    - name: "Stop solr"
+      command: "service solr stop"
+      become: True
+      ignore_errors: True
+        
+    - name: "Stop zookeeper"
+      service:
+        name: "zookeeper"
+        state: "stopped"
+        enabled: False
+      become: True
+     
+    - name: "Add startup delay in hybrisd.service"
+      become: True
+      lineinfile:
+        path: /etc/systemd/system/hybrisd.service
+        state: present
+        line: "ExecStartPre=/bin/sleep {{ hybrisd_service_startup_delay }}"
+        insertbefore: "ExecStart=/bin/bash -c './hybrisserver.sh start'"

@@ -1,0 +1,67 @@
+# This block is present only for debugging and testing puposes
+# Do not leave it uncommented while running in pipeline!
+#=============================================================
+# BEGIN{sourcelog = "source.log"}
+# {
+#     parsing_access(sourcelog)
+# }
+# END{}
+#=============================================================
+
+function parsing_access(sourcelog)
+{
+    gsub(/\\/,"\\\\",sourcelog)
+    split($0,msg,"\"")
+    agent = msg[6]
+    referrer = msg[4]
+    split(msg[3],a," ")
+    body_sent_bytes = a[2]
+    if (body_sent_bytes == "-")
+        body_sent_bytes=0
+    response_code = a[1]
+    split(msg[2],a," ")
+    http_version = a[3]
+    url = a[2]
+    method = a[1]
+    split(msg[1],a,"[\\]|\\[|[:space:]]+")
+    split(a[4],td,/-|\/|:|,|\.| /)
+    match("JanFebMarAprMayJunJulAugSepOctNovDec",td[2])
+    td[2] = sprintf("%02d",(RSTART+2)/3)
+    epoch = mktime(td[3]" "td[2]" "td[1]" "td[4]" "td[5]" "td[6])
+    user_name = a[3]
+    remote_ip = a[1]
+    if (epoch != -1)
+    {
+        ts = strftime("%Y-%m-%dT%H:%M:%S", epoch ,1)"Z"
+	access_message = remote_ip " " method " " url " " response_code
+        access_fields(sourcelog)
+    }
+}
+
+function access_fields(sourcelog)
+{
+  access_field["apache2"]["access"]["remote_ip"] = remote_ip
+  access_field["apache2"]["access"]["user_name"] = user_name
+  access_field["apache2"]["access"]["method"] = method
+  access_field["apache2"]["access"]["url"] = url
+  access_field["sourcelog"] = sourcelog
+  access_field["@timestamp"] = ts
+  access_field["message"] = access_message
+  access_field["apache2"]["access"]["http_version"] = http_version
+  access_field["apache2"]["access"]["response_code"] = response_code
+  access_field["apache2"]["access"]["body_sent.bytes"] = body_sent_bytes
+  access_field["apache2"]["access"]["referrer"] = referrer
+  access_field["apache2"]["access"]["agent"] = agent
+  access_field["logtype"] = logtype[sourcelog]
+  access_field["index"] = index_name[sourcelog]
+  print out_json(access_field)
+}
+
+function access_clean(sourcelog)
+{
+    for (i in access_field)
+        delete access_field[i]
+    delete logtype[sourcelog]
+}
+
+@include "{{ path.config }}/awk.d/out_json.awk"

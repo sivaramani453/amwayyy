@@ -1,0 +1,43 @@
+# For all robots
+User-agent: *
+
+# Block access to specific groups of pages
+Disallow: */sso/
+Disallow: */singlesignon/
+Disallow: /?
+Disallow: /*icid=
+Disallow: /*cid=
+Disallow: /*aboSponsorCode=
+Disallow: /*crossSellStrategy=
+Disallow: /*refProductCode=
+Disallow: /*forceShowPLP=
+Disallow: /*product_labels=
+Disallow: /404
+Disallow: /ru/404
+Disallow: /cart
+Disallow: /ru/cart
+Disallow: /*brand=
+Disallow: /*priceValue=
+Disallow: /*pointValue=
+Disallow: /*paymentModeCode=
+Disallow: /user/
+Disallow: /users/
+Disallow: /page_000
+Disallow: /*%20
+Disallow: /sovety__
+Disallow: /sovety/
+Disallow: /ru/calendar/
+Disallow: /calendar/
+Disallow: */user/
+Disallow: */users/
+Disallow: /*code=en
+Disallow: /*escaped_fragment
+Disallow: /*flow=
+Disallow: */*?app=
+
+
+# Insignificant parameters
+Clean-param: crossSellStrategy&refProductCode&searchKeyword&product_labels&forceShowPLP&text&paymentModeCode&cancelredirect&lng&idp&site&isBaseFlow
+
+Sitemap: https://www.amway.ua/sitemap.xml
+

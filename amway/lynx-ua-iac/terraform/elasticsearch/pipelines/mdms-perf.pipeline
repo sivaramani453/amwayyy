@@ -1,0 +1,18 @@
+PUT _ingest/pipeline/mdms-pdpproxy
+{
+  "mdms-pdpproxy" : {
+    "description" : "mdms perf pipeline",
+    "processors" : [
+      {
+        "grok" : {
+          "ignore_missing" : true,
+          "field" : "message",
+          "ignore_failure" : true,
+          "patterns" : [
+            ".*\"rt=%{BASE16FLOAT:rt} uct=\"%{BASE16FLOAT:uct}\" uht=\"%{BASE16FLOAT:uht}\" urt=\"%{BASE16FLOAT:urt}\""
+          ]
+        }
+      }
+    ]
+  }
+}

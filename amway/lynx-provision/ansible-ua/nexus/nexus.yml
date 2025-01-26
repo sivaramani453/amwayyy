@@ -1,0 +1,47 @@
+---
+- name: Install Nexus
+  hosts: all
+  become: yes
+
+  vars:
+    nexus_version: '3.15.2-01'
+    nexus_timezone: 'UTC'
+    nexus_admin_password: "P@ssw0rd321"
+    nexus_anonymous_access: true
+    nexus_api_hostname: "{{ ansible_default_ipv4.address }}"
+    nexus_public_hostname: 'Nexus'
+    nexus_branding_header: "Amway Nexus"
+    
+    # see this link before changing these parameters
+    # https://help.sonatype.com/repomanager3/system-requirements#SystemRequirements-Memory
+    nexus_min_heap_size: "2703M"
+    nexus_max_heap_size: "{{ nexus_min_heap_size }}"
+    nexus_max_direct_memory: "2703M"
+    
+    nexus_delete_default_repos: true
+    nexus_delete_default_blobstore: true
+    nexus_privileges:
+      - name: all-repos-read
+        description: 'Read & Browse access to all repos'
+        repository: '*'
+        actions:
+          - read
+          - browse
+    nexus_roles:
+      - id: developers
+        name: developers
+        description: All developers
+        privileges:
+          - nx-search-read
+          - all-repos-read
+        roles: []
+    nexus_local_users:
+      - username: anonymous
+        first_name: Anonymous
+        last_name: User
+        email: anonymous@example.org
+        roles:
+          # - developers
+  roles:
+    - { role: "../roles/lean_delivery.java" }
+    - { role: "../roles/ansible-thoteam.nexus3-oss" }

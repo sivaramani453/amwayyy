@@ -1,0 +1,56 @@
+---
+- name: "Download hybris artifact from web"
+  get_url:
+    url: "{{ solr_integrations_url }}"
+    dest: "{{ download_path }}"
+  until: "'OK' in FILE_DOWNLOADED.msg"
+  retries: 3
+  delay: 2
+  register: FILE_DOWNLOADED
+  delegate_to: "localhost"
+  connection: "local"
+
+- name: "Downloaded hybris artifact"
+  set_fact:
+    hybris_artifact: "{{ FILE_DOWNLOADED.dest }}"
+
+- name: "Unarchive hybris artifact"
+  become: True
+  unarchive:
+    src: "{{ hybris_artifact }}"
+    dest: "{{ solr_dest_solr_path }}/"
+    owner: "{{ solr_user }}"
+    group: "{{ solr_group }}"
+    mode: "0755"
+
+- name: "Download custom solr libs from web"
+  get_url:
+    url: "{{ solr_libs_url }}"
+    dest: "{{ download_path }}"
+  until: "'OK' in LIBS_FILE_DOWNLOADED.msg"
+  retries: 3
+  delay: 2
+  register: LIBS_FILE_DOWNLOADED
+  delegate_to: "localhost"
+  connection: "local"
+
+- name: "Downloaded custom solr libs"
+  set_fact:
+    solr_libs: "{{ LIBS_FILE_DOWNLOADED.dest }}"
+
+- name: "Unarchive custom solr libs"
+  become: True
+  unarchive:
+    src: "{{ solr_libs }}"
+    dest: "{{ solr_dest_solr_path }}/"
+    owner: "{{ solr_user }}"
+    group: "{{ solr_group }}"
+    mode: "0755"
+
+- name: "Copy configsets to {{ solr_base_path }}/data"
+  become: True
+  synchronize:
+    src: "{{ solr_dest_solr_path }}/server/solr/configsets"
+    dest: "{{ solr_base_path }}/data"
+  delegate_to: "{{ inventory_hostname }}"
+  

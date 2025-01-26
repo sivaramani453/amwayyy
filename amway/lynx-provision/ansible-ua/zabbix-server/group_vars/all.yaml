@@ -1,0 +1,27 @@
+# Zabbix
+zabbix_server_version: 4.2
+
+# MysSQL
+mysql_zabbix_database: zabbix
+mysql_zabbix_username: zabbix
+mysql_master_username: root
+mysql_new_installation: True
+
+# Web
+apache_server_name: zabbix.hybris.eia.amway.net
+apache_server_aliases: [ "www.{{ apache_server_name }}" ]
+
+# Docker
+docker_version: 19.03
+docker_users:
+  - "centos"
+daemon_conf:
+  storage-driver: overlay2
+  log-driver: "json-file"
+  log-opts:
+    max-size: "32m"
+    max-file: "5"
+
+# Misc
+misc_update_all: True
+misc_install_tools: True

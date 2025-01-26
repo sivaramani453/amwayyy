@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: kube-system
+  name: cluster-autoscaler-priority-expander
+data:
+  priorities: |-
+    100:
+      - ^amway-frankfurt-dev-spot.*
+    50:
+      - ^amway-frankfurt-dev-on-demand.*

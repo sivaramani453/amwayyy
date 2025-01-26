@@ -1,0 +1,4 @@
+zabbix_user: zabbix
+zabbix_group: zabbix
+zabbix_home_dir: /var/lib/zabbix
+mysql_zabbix_agent_user: zabbix-agent

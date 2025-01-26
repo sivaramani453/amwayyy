@@ -1,0 +1,15 @@
+version: "3.2"
+services:
+  postgres:
+    privileged: true
+    #build: ./postgres
+    image: "nexus.hybris.eia.amway.net:8083/postgres11-product-labeling:1.1"
+    ports:
+      - "5432:5432"
+    restart: always
+    volumes:
+      - /opt/postgres/data/:/var/lib/postgresql/data:consistent
+    environment:
+      POSTGRES_DB: product_labeling
+      POSTGRES_USER: product_labeling_user
+      POSTGRES_PASSWORD: product_labeling_pass

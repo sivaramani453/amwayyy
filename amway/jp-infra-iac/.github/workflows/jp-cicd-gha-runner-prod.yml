@@ -1,0 +1,20 @@
+name: Prod GHA runner container image build and push
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  image:
+    uses: AmwayCommon/jp-cicd-workflows/.github/workflows/image-build-push-ecr.yml@v0
+    with:
+      push_latest: true
+      ecr_repository: 074806990885.dkr.ecr.ap-northeast-1.amazonaws.com/jp-cicd-gha-runner
+      image_tag: v4
+      dockerfile: projects/gha-runner-container/docker/Dockerfile
+      context: projects/gha-runner-container/docker
+      iam_role: arn:aws:iam::074806990885:role/jpn-automation-prod-deploy
+      runner: ubuntu-latest

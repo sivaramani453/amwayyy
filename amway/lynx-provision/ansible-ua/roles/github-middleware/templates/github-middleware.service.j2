@@ -1,0 +1,24 @@
+[Unit]
+Description=Service for run middleware between github and bamboo (pull request checking)
+After=syslog.target
+After=network.target
+
+[Service]
+WorkingDirectory={{ service_home }}
+
+User={{ service_user_name }}
+Group={{ service_user_group }}
+
+OOMScoreAdjust=-100
+ExecStart=/usr/bin/python {{ service_exec_file }}
+
+TimeoutSec=300
+Restart=always
+
+StandardOutput=syslog
+StandardError=syslog
+
+SyslogIdentifier={{ service_identifier }}
+
+[Install]
+WantedBy=multi-user.target

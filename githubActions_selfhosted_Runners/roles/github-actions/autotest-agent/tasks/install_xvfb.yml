@@ -1,0 +1,24 @@
+---
+- name: Install repository and packages
+  block:
+    - name: Install tools
+      yum:
+       name:
+        - xorg-x11-server-Xvfb
+       state: "present"
+    - name: Install Openbox WM
+      yum:
+        name: openbox
+        state: "present"    
+    - name: Render default Xvfb config
+      template:
+        src: "xvfb.service.j2"
+        dest: "/etc/systemd/system/xvfb.service"
+        mode: 0770
+    - name: Enable xvfb
+      shell: systemctl daemon-reload 
+    - name: Enable xvfb
+      shell: systemctl enable xvfb.service
+    - name: Enable xvfb
+      shell: systemctl start xvfb.service
+  become: true

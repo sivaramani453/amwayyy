@@ -1,0 +1,31 @@
+{% raw %}
+BEGIN{}
+  {
+    sourcelog=extract()
+    gsub(/\\/,"\\\\",sourcelog)
+    logtype[sourcelog]=extract()
+    index_name[sourcelog]=extract()
+
+    # controlling input file closures from filebeat input log to detect last line of file
+    if (logtype[sourcelog] == "filebeat_input")
+      check_file_closure(sourcelog)
+    
+    parser="parsing_"logtype[sourcelog]
+    @parser(sourcelog)
+  }
+END{}
+
+function extract() 
+{
+  pos = index($0, "||")		    # find position of first separator '||' in input line
+  fld = substr($0, 1, pos - 1)	# extracting field fld from standard input created by filebeat-in
+  $0 = substr($0, pos + 2)    # removing field fld from message for parsing
+  return fld
+}
+{% endraw %}
+@include "{{ path.config }}/awk.d/check_file_closure.awk"
+
+{% for parser in awk_files.files %}
+@include "{{ parser.path }}"
+
+{% endfor %}

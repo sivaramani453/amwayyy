@@ -1,0 +1,19 @@
+---
+- name: Check what data dir actually is
+  stat:
+    path: "{{ hybris_data_path }}"
+  register: hotfolder
+
+
+- name: Already symlink, do nothing
+  debug:
+    msg: "This is fine"
+  when:
+    - hotfolder.stat.exists
+    - hotfolder.stat.islnk
+
+- name: Transform directroy to symlink
+  include_tasks: transform.yaml
+  when:
+    - hotfolder.stat.exists
+    - hotfolder.stat.isdir

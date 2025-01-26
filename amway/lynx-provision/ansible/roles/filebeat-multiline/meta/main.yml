@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: EPM-LDI project
+  description: Role for filebeat multiline flow installation
+  company: EPAM
+
+  license: Proprietary
+
+  min_ansible_version: 2.4
+
+  platforms:
+    - name: Windows
+      versions:
+        - all
+    - name: EL
+      versions:
+        - 6
+        - 7
+
+  galaxy_tags: []
+
+dependencies: []

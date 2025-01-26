@@ -1,0 +1,8 @@
+apiVersion: solr.apache.org/v1beta1
+kind: SolrCloud
+metadata:
+  name: solrexample
+spec:
+  replicas: 3
+  solrImage:
+    tag: 7.1.0

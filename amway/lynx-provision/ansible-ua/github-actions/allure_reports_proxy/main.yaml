@@ -1,0 +1,29 @@
+- hosts: all
+  remote_user: centos
+
+  tasks:
+    - name: "Disable Selinux"
+      become: true
+      selinux:
+        state: "disabled"
+
+    - name: Update and install tools
+      include_tasks: prepare.yaml
+
+    - name: Install NGINX Server
+      become: true
+      block:
+        - name: Install nginx package
+          yum:
+            name: nginx
+            state: present
+
+        - name: Copy nginx.conf file
+          copy:
+            src: nginx.conf
+            dest: /etc/nginx/nginx.conf
+
+        - name: Enable nginx service
+          systemd:
+            name: nginx
+            enabled: yes

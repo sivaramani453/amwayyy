@@ -1,0 +1,114 @@
+---
+- hosts: 'all'
+
+  pre_tasks:
+   - name: Check that vault variables aren't empty (not the elegant way though)
+     fail:
+       msg: 'The variables that we tried to obtain from the vault are empty'
+     when: (docker_registry_password is undefined or ( docker_registry_password | length ) == 0) or
+           (docker_registry_username is undefined or ( docker_registry_username | length ) == 0)     
+
+  roles:
+  - role: '../roles/lean_delivery.docker'
+
+  post_tasks:
+   - name: Enable and Install additional repositories and packages
+     block:
+       - name: Enable repositories
+         yum:
+           name: '{{ item }}'
+           state: present
+         loop: '{{ repo_urls }}'  
+  
+       - name: Install system packages
+         yum:
+           name: '{{ item }}'
+           state: present
+         loop: '{{ system_packages }}'
+
+       - name: Install pip packages
+         pip:
+           name: '{{ item }}'
+         loop: '{{ pip_packages }}'
+
+       - name: Install pip3 packages
+         pip:
+           name: '{{ item }}'
+           executable: pip3
+         loop: '{{ pip3_packages }}'
+     become: True
+
+   - name: 'Login into docker registry {{ docker_registry_name }}'
+     docker_login:
+       registry: '{{ docker_registry_name }}'
+       username: '{{ docker_registry_username }}'
+       password: '{{ docker_registry_password }}'
+     become: True   
+
+   - name: Install docker-compose
+     get_url:
+       url: '{{ docker_compose_url }}'
+       dest: '{{ docker_compose_path }}'
+       owner: 'root'
+       group: 'root'
+       mode: '0755'
+       seuser: 'system_u'
+       serole: 'object_r'
+       setype: 'bin_t'
+       selevel: 's0'
+     register: docker_compose_downloaded
+     until: docker_compose_downloaded is succeeded
+     retries: 3
+     delay: 2  
+     become: True
+   
+   - name: Create docker build directories
+     file:
+       path: '{{ item }}'
+       state: directory
+       owner: 'root'
+       group: 'root'
+       mode: '0755'
+     loop: '{{ docker_build_dirs }}'
+     become: True
+
+   - name: Install Vault client
+     block:
+       - name: Download Vault
+         get_url:
+           url: '{{ vault_url }}'
+           dest: '{{ download_tmp_path }}'
+           checksum: '{{ vault_version_checksum }}'
+         register: vault_downloaded
+         until: vault_downloaded is succeeded
+         retries: 3
+         delay: 2
+         
+       - name: Unarchive Vault
+         unarchive:
+           src: '{{ download_tmp_path }}/{{ vault_archive_name }}'
+           dest: '{{ vault_bin_path }}'
+           seuser: 'system_u'
+           serole: 'object_r'
+           setype: 'bin_t'
+           selevel: 's0'
+           remote_src: true   
+     become: True
+   
+   - name: Install rclone client
+     block:
+      - name: Download rclone
+        get_url:
+          url: '{{ rclone_url }}'
+          dest: '{{ download_tmp_path }}'
+          checksum: '{{ rclone_version_checksum }}'       
+        register: rclone_downloaded
+        until: rclone_downloaded is succeeded
+        retries: 3
+        delay: 2
+
+      - name: Install rclone rpm package
+        yum:
+         name: '{{ download_tmp_path }}/{{ rclone_package_name }}'
+         state: present        
+     become: True        

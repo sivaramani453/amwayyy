@@ -1,0 +1,6 @@
+---
+- name: "Reload privilege tables in MySQL"
+  command: 'mysql -ne "{{ item }}" -uroot -p"{{ mysql_root_password }}"'
+  with_items:
+    - FLUSH PRIVILEGES
+  changed_when: False

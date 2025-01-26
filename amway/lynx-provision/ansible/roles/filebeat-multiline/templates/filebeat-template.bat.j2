@@ -1,0 +1,1 @@
+filebeat.exe -c "{{ path.config }}\filebeat-in.yml" | awk -f "{{ path.config }}\parsing-pipeline.awk" | filebeat.exe -c "{{ path.config }}\filebeat-out.yml"

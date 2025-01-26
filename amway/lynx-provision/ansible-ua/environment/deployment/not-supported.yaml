@@ -1,0 +1,6 @@
+---
+- name: Warn on unsupported platform
+  fail:
+    msg: |
+      This play does not support '{{ notifications_driver }}' messaging driver.
+        Please contact to devops team

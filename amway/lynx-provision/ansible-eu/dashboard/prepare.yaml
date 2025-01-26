@@ -1,0 +1,49 @@
+---
+- name: Update and Install required packages
+  block:
+    - name: Perform yum update
+      yum:
+        name: "*"
+        state: "latest"
+
+    - name: Install amazon-linux-extras packages
+      shell: "amazon-linux-extras install {{ item }}"
+      loop: "{{ amazon_packages }}"
+
+    - name: Install additional system packages
+      yum:
+        name: "{{ item }}"
+        state: "latest"
+      loop: "{{ system_packages }}"
+  become: True
+  tags:
+    - nginx-install
+
+- name: Create directories
+  block:
+    - name: "Create {{ site_root_dir }}"
+      file:
+        path: "{{ site_root_dir }}"
+        state: directory
+        owner: "{{ user_name }}"
+        group: "{{ user_name }}"
+        mode: 0755
+
+    - name: "Create {{ dumps_mount_dir }}"
+      file:
+        path: "{{ dumps_mount_dir }}"
+        state: directory
+        owner: "root"
+        group: "root"
+        mode: "0755"
+
+    - name: "Create {{ mysql_be_dumps_mount_dir }}"
+      file:
+        path: "{{ mysql_be_dumps_mount_dir }}"
+        state: directory
+        owner: "root"
+        group: "root"
+        mode: "0755"
+  become: True
+  tags:
+    - nginx-locations

@@ -1,0 +1,7 @@
+---
+- src: git@git.epam.com:dip-roles/ca-root.git
+  scm: git
+  version: v0.1
+- src: git@git.epam.com:dip-roles/ca-cert.git
+  scm: git
+  version: v0.2

@@ -1,0 +1,46 @@
+---
+- name: Install deps for github
+  become: true
+  yum:
+    name: "{{ item }}"
+    state: latest
+  loop: "{{ runner_dependencies }}"
+  
+- name: Prepare directory
+  become: true
+  become_user: "{{ runner_user }}"
+  file:
+    path: "/home/{{ runner_user }}/{{ runner_workdir }}"
+    state: directory
+    owner: "{{ runner_user }}"
+    
+- name: Download and install runner package
+  block:
+    - name: Get download url
+      uri:
+        status_code: 200
+        url: https://api.github.com/repos/AmwayACS/actions/actions/runners/downloads
+        headers:
+          Authorization: "token {{ github_token }}"
+      register: github_response
+    
+    - name: Register vars for url and archieve name
+      set_fact:
+        download_url: "{{ item.download_url }}"
+        file_name: "{{ item.filename }}"
+      when: item.os == "linux" and item.architecture == "x64"
+      loop: "{{ github_response.json }}"
+  
+    - name: Download archieve
+      get_url:
+        dest: "/home/{{ runner_user }}/runner.tar.gz"
+        url: "{{ download_url }}"
+
+    - name: Unurchive runner package
+      unarchive:
+        remote_src: yes
+        src: "/home/{{ runner_user }}/runner.tar.gz"
+        dest:  "/home/{{ runner_user }}/{{ runner_workdir }}"
+
+  become: true
+  become_user: "{{ runner_user }}"

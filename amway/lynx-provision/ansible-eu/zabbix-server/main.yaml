@@ -1,0 +1,43 @@
+- hosts: all
+  remote_user: centos
+
+  pre_tasks:
+    - name: Ensure that installed ansible version will support some new features
+      assert:
+        that:
+          - ansible_version.major >= 2
+          - ansible_version.minor >= 9
+        fail_msg: "Playbook requires 2.8.x ansible version or higher to support few modules"
+        success_msg: "Supported ansible version detected"
+
+    - name: "Disable Selinux"
+      become: True
+      selinux:
+        state: "disabled"
+
+  roles:
+    # Install mariadb server and create users (ext role)
+    - role: "../roles/bertvv.mariadb"
+      become: True
+      mariadb_users:
+        - name: grafana
+          password: "{{ lookup('password', '/tmp/garana-passwordfile length=15') }}"
+          priv: "{{ mysql_zabbix_database }}.*:SELECT"
+        - name: "zabbix-agent"
+          password: "{{ lookup('password', '/tmp/agent-passwordfile length=15') }}"
+          priv: "*.*:USAGE"
+
+    # Install and configure docker daemon (ldi role)
+    - role: '../roles/lean_delivery.docker'
+
+    # Install zabbix server (custom role)
+    - role: "../roles/zabbix/server"
+
+    # Install zabbix web (custom role)
+    - role: ../roles/zabbix/web
+
+    # Install grafana service
+    - role: ../roles/zabbix/grafana
+
+    # Import couple templates and create notification actions and so on...
+    - role: ../roles/zabbix/postprovision

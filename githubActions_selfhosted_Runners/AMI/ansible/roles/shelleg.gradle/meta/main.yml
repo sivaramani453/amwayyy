@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: "Haggai Philip Zagury"
+  description: "Installs Gradle"
+  company: "Tikal Knowldge LTD"
+  license: Apache
+  min_ansible_version: 2.0
+  platforms:
+    - name: Ubuntu
+      versions:
+        - xenial
+    - name: EL
+      versions:
+        - 7
+  galaxy_tags:
+    - system
+    - java
+    - "build tools"
+dependencies: []

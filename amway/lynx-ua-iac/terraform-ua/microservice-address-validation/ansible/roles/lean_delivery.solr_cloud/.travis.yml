@@ -1,0 +1,28 @@
+---
+dist: xenial
+sudo: required
+
+language: python
+python:
+  - "3.6"
+
+services:
+  - docker
+
+before_install:
+  - git clone https://github.com/lean-delivery/ansible-lint-rules.git ~/ansible-lint-rules
+
+install:
+  - pip install --upgrade git+https://github.com/ansible/ansible.git@devel docker
+  - pip install molecule==2.22
+  - pip install git+https://github.com/ansible/ansible-lint.git
+  - ansible --version
+  - ansible-lint --version
+
+script:
+  - yamllint . -c .yamllint
+  - ansible-lint . -c .ansible-lint
+  - molecule test -s default
+
+notifications:
+  webhooks: https://galaxy.ansible.com/api/v1/notifications/

@@ -1,0 +1,61 @@
+{
+  "variables": {
+    "aws_access_key": "",
+    "aws_secret_key": "",
+    "spot_aws_access_key": "{{ vault `/kv/data/bamboo/agents/aws_spot_credentials` `access_key` }}",
+    "spot_aws_secret_key": "{{ vault `/kv/data/bamboo/agents/aws_spot_credentials` `secret_access_key` }}",
+    "git_admin_user_1": "{{ vault `/kv/data/github/amway/git_admin_user_1` `username` }}",
+    "git_admin_user_2": "{{ vault `/kv/data/github/amway/git_admin_user_4_enterprise` `username` }}",
+    "git_admin_user_1_password": "{{ vault `/kv/data/github/amway/git_admin_user_1` `password` }}",
+    "git_admin_user_2_password": "{{ vault `/kv/data/github/amway/git_admin_user_4_enterprise` `token_repo_scope` }}",
+    "mysql_password": "{{ vault `/kv/data/bamboo/agents/mysql_root_password` `password` }}",
+    "aws_region": "eu-central-1"
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "{{user `aws_region`}}",
+    "subnet_id": "subnet-5993d314",
+    "associate_public_ip_address": false,
+    "source_ami_filter": {
+      "filters": {
+      "virtualization-type": "hvm",
+      "name": "centos7-golden*",
+      "root-device-type": "ebs"
+      },
+      "owners": ["860702706577"],
+      "most_recent": true
+    },
+	"vpc_filter": {
+		"filters": {
+			"tag:Name": "AWS-EIA-Hybris",
+			"isDefault": "false"
+		}
+	},
+    "instance_type": "t3.xlarge",
+    "ssh_username": "centos",
+    "ami_name": "CI-SPOT-PR {{timestamp}}",
+    "tags": {
+      "Name": "created by packer",
+      "OwnedBy": "George Kakovkin"
+    }
+  }],
+  "provisioners": [
+    {
+      "type": "shell-local",
+      "inline": "cd ../ansible/ci-pull-requests-agent/ && ansible-galaxy install -r requirements.yml -p ../roles/ -f"
+	},
+    {
+      "type": "ansible",
+      "extra_arguments": [
+        "-v", "--extra-vars", "AWS_RW_PARAMETER_STORE_KEY_ID={{user `spot_aws_access_key`}} AWS_RW_PARAMETER_STORE_SECRET_KEY={{user `spot_aws_secret_key`}} git_admin_user_1={{ user `git_admin_user_1` }} git_admin_user_1_password={{ user `git_admin_user_1_password` }} git_admin_user_2={{ user `git_admin_user_2` }} git_admin_user_2_password={{ user `git_admin_user_2_password` }} MYSQL_PASSWORD={{ user `mysql_password` }}"
+      ],
+      "playbook_file": "../ansible/ci-pull-requests-agent/main.yml"
+    },
+    {
+      "type": "shell",
+      "inline": ["sudo sed -i '$ a ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCzX3UBP+PcRwT+KtM3jxlAPrsihEaFaKN74SafmeL0WwCCIk0doHihXc4/bW3Np1VgV8b9Jlr63g7eIFlzdlG3KxqFXFbG+TF/oNjmdmConzQ0uj7l75+xBEBYfN//ZEx5H9V5Am1G/gd/dCGUVV7lyae2CqipNwHsPcfweQixg5huh1cn8511fpYDKSRdVI+qF3flBo6lwNALQI23+TJ8mGHW/Hj3iw1FWD3JqK/gKr1Wvrit1v7gCDQ8wNDVRp/3FElCrH+DQlXgs74x7z6NeZbGUvCfLwOuDFVWOFQr2mvBDpNuCVEB188bHWW2dj9dzv3YCFIGxoPP2dUUIFur' /root/.ssh/authorized_keys"]
+    }
+  ]
+}

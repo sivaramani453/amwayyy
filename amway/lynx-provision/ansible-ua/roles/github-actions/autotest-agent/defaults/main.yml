@@ -1,0 +1,17 @@
+---
+# VNC
+vnc_user: github
+vnc_group: github
+vnc_password: "autotest"
+
+# Google Chrome
+download_tmp_path: "/tmp"
+google_chrome_package_name: "google-chrome-stable-83.0.4103.97-1.x86_64.rpm"
+google_chrome_url: "https://nexus.hybris.eia.amway.net/repository/static-files/static-files/{{ google_chrome_package_name }}"
+
+# Static DNS entries
+amway_dns_names:
+  - { ip: 172.27.17.96, dns: dms-service-perf }
+  - { ip: 172.21.76.80, dns: dms-service-dev }
+  - { ip: 172.21.76.248, dns: dms-service-qa }
+  - { ip: 172.21.105.169, dns: magic-gamma }

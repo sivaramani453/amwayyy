@@ -1,0 +1,75 @@
+---
+- name: Update and Install required packages
+  block:
+    - name: Perform yum update
+      yum:
+        name: "*"
+        state: "latest"
+
+    - name: Install amazon-linux-extras packages
+      shell: "amazon-linux-extras install {{ item }}"
+      loop: "{{ amazon_packages }}"
+
+    - name: Install additional system packages
+      yum:
+        name: "{{ item }}"
+        state: "latest"
+      loop: "{{ system_packages }}"  
+  become: True
+
+- name: Install docker
+  block:
+    - name: Install {{ docker_package }}
+      package:
+        name: '{{ docker_package }}'
+        state: present
+      register: installed_docker
+      retries: 30
+      until: installed_docker is succeeded
+
+    - name: Add user to group 'docker'
+      user:
+        name: '{{ item }}'
+        append: true
+        groups: docker
+      loop: '{{ l_docker_users }}'
+      vars:
+        l_docker_users: "{{ docker_users | difference(['root']) }}"
+
+    - name: Create /etc/docker folder
+      file:
+        path: /etc/docker
+        state: directory
+        mode: 0755
+
+    - name: Create daemon.json file
+      template:
+        src: daemon.json.j2
+        dest: /etc/docker/daemon.json
+
+    - name: Restart docker
+      service:
+        name: docker
+        state: restarted
+        enabled: true      
+  become: True
+
+- name: Install Vault client
+  block:
+    - name: Download Vault
+      get_url:
+        url: '{{ vault_url }}'
+        dest: '{{ download_tmp_path }}'
+        checksum: '{{ vault_version_checksum }}'
+      register: vault_downloaded
+      until: vault_downloaded is succeeded
+      retries: 3
+      delay: 2
+
+    - name: Unarchive Vault
+      unarchive:
+        src: '{{ download_tmp_path }}/{{ vault_archive_name }}'
+        dest: '{{ vault_bin_path }}'
+        remote_src: true
+  become: True
+

@@ -1,0 +1,5 @@
+---
+solr_requirements:
+  - "unzip"
+  - "tar"
+  - "lsof"

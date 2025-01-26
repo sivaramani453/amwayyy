@@ -1,0 +1,66 @@
+---
+- name: "Create parent datadir for mysql"
+  become: true
+  file:
+    path: /opt/media
+    state: directory
+    owner: root
+    mode: 0755
+
+- name: Install packages and python modules
+  become: true
+  block:
+    - name: Update all system packages
+      yum:
+        name: "*"
+        state: "latest"
+
+    - name: Install epel repo
+      yum:
+        name:  epel-release
+        state: present
+
+    - name: Install useful tools
+      yum:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ install_packages }}"
+
+    - name: Upgrade pip to the latest version
+      pip:
+        name: pip
+        executable: "pip3"
+        state: latest
+
+    - name: Install pip packages
+      pip:
+        name: "{{ item }}"
+        executable: "pip3"
+      loop: "{{ install_pip_modules }}"
+
+- name: Install external packes
+  become: True
+  block:
+    - name: Create directories
+      file:
+        path: "{{ item.dir }}{{ item.exec }}{{ item.version }}"
+        state: directory
+        mode: '0755'
+        recurse: yes
+      with_items: "{{ package_distribution }}"
+
+    - name: Download and unzip packages
+      unarchive:
+        src: "{{ item.url }}"
+        dest: "{{ item.dir }}{{ item.exec }}{{ item.version }}"
+        remote_src: yes
+      with_items: "{{ package_distribution }}"
+
+    - name: Link packages and versions to /usr/bin
+      file:
+        src: "{{ item.dir }}{{ item.exec }}{{ item.version }}/{{ item.exec }}"
+        dest: "/usr/bin/{{ item.exec }}{{ item.version }}"
+        state: link
+        owner: root
+        group: root
+      with_items: "{{ package_distribution }}"

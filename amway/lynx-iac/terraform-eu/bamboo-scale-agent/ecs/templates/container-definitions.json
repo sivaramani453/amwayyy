@@ -1,0 +1,89 @@
+[
+  {
+    "name": "${name}",
+    "cpu": ${cpu},
+    "memoryReservation": ${memory_soft},
+    "memory": ${memory_hard},
+    "image": "${image_name}",
+    "portMappings": [
+      {
+        "containerPort": ${port},
+        "hostPort": ${port}
+      }
+    ],
+    "environment": [
+      {
+	  "name": "CI_AUTOTEST_AMI_ID",    
+          "value": "${env_aws_ci_autotest_ami_id}"
+      },
+      {     
+	  "name": "CI_AUTOTEST_AMI_SNAP_ID",    
+          "value": "${env_aws_ci_autotest_ami_snap_id}"
+      },
+      {   
+	  "name": "CI_AUTOTEST_INST_SHAPE",    
+	  "value": "${env_aws_ci_autotest_instance_shape}"
+      },
+      {   
+	  "name": "CI_AUTOTEST_DISK_SIZE",   
+	  "value": "${env_aws_ci_autotest_disk_size}"
+      },
+      {   
+	  "name": "CI_AUTOTEST_SPOT_DURATION",    
+	  "value": "${env_aws_ci_autotest_spot_duration}"
+      },
+      {   
+	  "name": "CI_AMI_ID",
+          "value": "${env_aws_ci_ami_id}"
+      },
+      { 
+	  "name": "CI_AMI_SNAP_ID",     
+          "value": "${env_aws_ci_ami_snap_id}"
+      },
+      {
+	  "name": "CI_INST_SHAPE",
+          "value": "${env_aws_ci_instance_shape}"
+      },
+      {
+	  "name": "CI_DISK_SIZE",
+          "value": "${env_aws_ci_disk_size}"
+      },
+      {
+	  "name": "CI_SPOT_DURATION",
+          "value": "${env_aws_ci_spot_duration}"
+      },
+      {   
+	  "name": "CI_SUBNET_ID_A",    
+          "value": "${env_aws_ci_subnet_id_a}"
+      },
+      {      
+	  "name": "CI_SUBNET_ID_B",    
+          "value": "${env_aws_ci_subnet_id_b}"
+      },
+      {   
+	  "name": "CI_SUBNET_ID_C",
+          "value": "${env_aws_ci_subnet_id_c}"
+      },
+      {      
+	  "name": "CI_INST_PROFILE",    
+          "value": "${env_aws_ci_instance_profile}"
+      },
+      {      
+	  "name": "CI_INST_KP",    
+          "value": "${env_aws_ci_instance_kp}"
+      },
+      {      
+	  "name": "CI_INST_SG",    
+          "value": "${env_aws_ci_instance_sg}"
+      }
+    ],
+    "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+            "awslogs-region": "${region}",
+            "awslogs-group": "${log-group}",
+            "awslogs-stream-prefix": "${log-prefix}"
+        }
+    }
+  }
+]

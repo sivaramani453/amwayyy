@@ -1,0 +1,29 @@
+# general settings
+path:
+{{ path | to_nice_yaml | indent(2, true) }}
+
+filebeat:
+  registry_file: registry_in
+  config:
+    {{ filebeat_inputs_name }}: 
+      enabled: true
+      path: inputs.d/*.yml
+      reload:
+        enabled: true
+        period: 10s
+
+# output settings
+output.console:
+  codec.format:
+    string: '%{[source]}||%{[logtype]}||%{[index_name]}||%{[message]}'
+
+# logging settings
+logging.level: info
+logging.to_syslog: False
+logging.to_files: True
+logging.files:
+  path: {{ path.logs }}
+  name: filebeat-in.log
+  rotateeverybytes: 104857600
+  keepfiles: 30
+  

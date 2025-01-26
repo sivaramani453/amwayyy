@@ -1,0 +1,36 @@
+name: Join Offline runner
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 0 11 */14 * *
+
+env:
+  ECR_REGISTRY: "744058822102.dkr.ecr.eu-central-1.amazonaws.com"
+  DOCKER_CONFIG: "/home/runner/.docker"
+
+jobs:
+  add_runner:
+    name: Add runner
+    runs-on: [ubuntu-latest]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          repository: AmwayCommon/actions
+          token: ${{ secrets.GIT_TOKEN }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Add runner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        uses: ./add_offline_runner
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}

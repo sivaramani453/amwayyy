@@ -1,0 +1,38 @@
+grafana.ini:
+  server:
+    domain: mgmt.ru.eia.amway.net
+
+ingress:
+  enabled: true
+  hosts:
+    - "mgmt.ru.eia.amway.net"
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/group.name: "eks-internal-alb"
+    external-dns.alpha.kubernetes.io/hostname: mgmt.ru.eia.amway.net
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-central-1:645993801158:certificate/b9ea01b0-0ad3-4c08-adbe-d96f67e228cb"
+    alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS-1-2-2017-01"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
+  path: /*
+  
+service:
+  annotations:
+    alb.ingress.kubernetes.io/target-type: ip
+
+persistence:
+  enabled: true
+  storageClassName: gp3
+#  extraVolumeMounts:
+#    - name: plugins
+#      mountPath: /var/lib/grafana/plugins
+#      subPath: configs/grafana/plugins
+#      existingClaim: existing-grafana-claim
+#      readOnly: false
+#    - name: dashboards
+#      mountPath: /var/lib/grafana/dashboards
+#      hostPath: /usr/shared/grafana/dashboards
+#      readOnly: false
+     
+

@@ -1,0 +1,14 @@
+name: UAT BNC Training Data DynamoDB IAM role
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy_role:
+    uses: AmwayCommon/jp-cicd-workflows/.github/workflows/aws-iac-deploy.yml@main
+    with:
+      project_dir: projects/jp-acsd-bnc-training-data/stacks/uat

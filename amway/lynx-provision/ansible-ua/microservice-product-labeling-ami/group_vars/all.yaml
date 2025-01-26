@@ -1,0 +1,52 @@
+## 
+download_tmp_path: '/tmp'
+
+## repositories
+repo_urls:
+  - 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm'
+
+## docker-compose
+docker_compose_version: '1.25.4'
+docker_compose_url: 'https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-Linux-x86_64'
+docker_compose_path: '/usr/bin/docker-compose'
+
+## docker
+docker_registry_name: 'nexus.hybris.eia.amway.net:8083'
+docker_registry_username: ''
+docker_registry_password: ''
+docker_version: '19.03.8'
+docker_users:
+  - 'centos'
+daemon_conf:
+  storage-driver: overlay2
+  log-driver: 'json-file'
+  log-opts:
+    max-size: '256m'
+    max-file: '2'
+docker_build_dirs:
+   - '/opt/docker-build/certificates'
+
+## additional system packages
+system_packages:
+   - 'vim'
+   - 'joe'
+   - 'zip'
+   - 'unzip'
+   - 'curl'
+   - 'wget'
+   - 'net-tools'
+   - 'python2-pip'
+   - 'python3'
+   - 'python3-pip'
+   - 'libselinux-python3'   
+   - 'jq'
+   - 'git'
+## pip packages
+pip_packages:
+   - 'awscli'
+   - 'docker'
+   - 'pyyaml'
+   - 'hvac'
+   - 'boto'
+   - 'boto3'
+   - 'botocore'  

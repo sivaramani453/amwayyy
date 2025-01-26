@@ -1,0 +1,34 @@
+nodes:
+  - address: 10.124.82.10
+    internal_address: 10.124.82.10
+    user: centos
+    role: [controlplane,etcd]
+    ssh_key_path: ~/.ssh/ansible_rsa
+  - address: 10.124.82.12
+    internal_address: 10.124.82.12
+    user: centos
+    role: [worker]
+    ssh_key_path: ~/.ssh/ansible_rsa
+
+
+services:
+  etcd:
+    snapshot: true
+    creation: 6h
+    retention: 24h
+    s3_backup_config:
+      access_key: ""
+      secret_key:  ""
+      bucket_name: "amway-dev-india-cluster-etcd-backups"
+      endpoint: "s3.ap-south-1.amazonaws.com"
+      region: "ap-south-1"
+  kube-controller:
+    extra_args:
+      pod-eviction-timeout: 10s
+      node-monitor-grace-period: 6s
+  kubelet:
+    node-status-update-frequency: 3s
+  kube-api:
+    extra_args:
+      default-not-ready-toleration-seconds: 10
+      default-unreachable-toleration-seconds: 10

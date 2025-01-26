@@ -1,0 +1,45 @@
+---
+- name: Update All Packages
+  become: true
+  yum:
+    name: "*"
+    state: "latest"
+
+- name: Install packages and python modules
+  become: true
+  block:
+    - name: Install epel repo
+      yum:
+        name:  epel-release
+        state: present
+
+    - name: Install useful tools
+      yum:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ install_packages }}"
+
+    - name: Install pip packages
+      pip:
+        name: "{{ item }}"
+        executable: "pip3.4"
+      loop: "{{ install_pip_modules }}"
+
+- name: Install Terraform
+  become: true
+  block:
+    - name: Download terraform archive
+      get_url:
+        dest: "/root/terraform.zip"
+        url: "https://releases.hashicorp.com/terraform/0.11.14/terraform_0.11.14_linux_amd64.zip"
+
+    - name: Unurchive terraform
+      unarchive:
+        remote_src: yes
+        src: "/root/terraform.zip"
+        dest:  /usr/local/bin
+
+    - name: Set exec privilege to terraform binary
+      file:
+        path: /usr/local/bin/terraform
+        mode: 755

@@ -1,0 +1,39 @@
+---
+- name: "Add user"
+  user:
+    name:  "{{ USERNAME }}"
+    comment: "user for developers"
+
+- name: "Create .ssh directory"
+  file:
+    path: "/home/{{ username }}/.ssh"
+    state: "directory"
+    mode: "0600"
+
+- name: "Copy ssh pub key"
+  copy:
+    src: "{{ public_key_path }}"
+    dest: "/home/{{ username }}/.ssh/id_rsa.pub"
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: "0644"
+
+- name: "Copy ssh private key"
+  copy:
+    src: "{{ private_key_path }}"
+    dest: "/home/{{ username }}/.ssh/id_rsa"
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: "0600"
+
+- name: "Set authorized key taken from file"
+  authorized_key:
+    user: "{{ username }}"
+    state: "present"
+    key: "{{ lookup('file', '{{ public_key_path }}') }}"
+
+- name: Add user to sudoers
+  lineinfile:
+    path: "/etc/sudoers"
+    insertafter: "EOF"
+    line: "{{ username }}    ALL = NOPASSWD: ALL"

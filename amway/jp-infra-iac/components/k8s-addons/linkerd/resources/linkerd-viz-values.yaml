@@ -1,0 +1,6 @@
+grafana:
+  enabled: false
+prometheus:
+  enabled: false
+prometheusUrl: http://prometheus-server.prometheus.svc.cluster.local
+jaegerUrl: http://jaeger-query.linkerd-jaeger.svc.cluster.local

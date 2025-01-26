@@ -1,0 +1,41 @@
+---
+- name: Transform datadir to hotfolder symlink
+  block:
+  # due to issues of nfs4 you'll be unable to delete directory under any user, but able to clean it inside
+    - name: Purge hotfolder
+      become: true
+      become_user: hybris
+      command: "rm -rf {{ hotfolder_path }}/amway/*"
+
+    - name: Copy data from hybris to new hotfolder location
+      become: true
+      become_user: hybris
+      copy:
+        remote_src: true
+        src: "{{ hybris_data_path }}/"
+        dest: "{{ hotfolder_path }}/amway"
+
+    - name: Delete data source dir
+      become: true
+      become_user: hybris
+      file:
+        path: "{{ hybris_data_path }}"
+        state: absent
+
+    - name: Create symlink to hotfolder
+      become: True
+      become_user: hybris
+      file:
+        dest: "{{ hybris_data_path }}"
+        state: link
+        src: "{{ hotfolder_path }}/amway"
+  rescue:
+    - name: Notify about failure
+      include_role: 
+        name: "../roles/notification-with-tags" 
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Could not create/prepare hotfolder on be2 node"
+
+    - name: Now fail real
+      fail:
+        msg: "Could not properly prepare hotfolder"

@@ -1,0 +1,30 @@
+- name: Install Terraform
+  become: true
+  block:
+    - name: Download terraform-{{ tf_version }} archive
+      get_url:
+        dest: "/root/terraform.zip"
+        url: "{{ tf_url }}"
+
+    - name: Unarchive terraform-{{ tf_version }}
+      unarchive:
+        remote_src: yes
+        src: "/root/terraform.zip"
+        dest:  /usr/local/bin
+
+    - name: Copy binary from raw terraform to terraform-{{ tf_version }}
+      copy:
+        remote_src: yes
+        src: /usr/local/bin/terraform
+        dest: /usr/local/bin/terraform-{{ tf_version }} 
+
+    - name: Set exec privilege to terraform-{{ tf_version }} binary
+      file:
+        path: /usr/local/bin/terraform-{{ tf_version }}
+        mode: 755
+
+    - name: Remove downloaded Terraform archive
+      file:
+        path: /root/terraform.zip
+        state: absent
+        

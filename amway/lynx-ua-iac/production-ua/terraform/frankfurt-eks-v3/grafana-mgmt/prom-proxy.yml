@@ -1,0 +1,10 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: prom-proxy
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: rancher-monitoring-prometheus.cattle-monitoring-system.svc.cluster.local
+  ports:
+  - port: 9090

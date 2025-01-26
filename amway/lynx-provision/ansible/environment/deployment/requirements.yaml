@@ -1,0 +1,4 @@
+---
+roles:
+  - src: lean_delivery.hybris_deploy_artifacts
+    version: 1.0

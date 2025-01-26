@@ -1,0 +1,28 @@
+env:
+  open:
+    STORAGE: amazon
+    STORAGE_AMAZON_BUCKET: amway-chartmuseum-h-backend
+    STORAGE_AMAZON_PREFIX:
+    STORAGE_AMAZON_REGION: eu-central-1
+
+service:
+  type: NodePort
+
+ingress:
+  enabled: true
+  annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/group.name: "hybris-internal-alb"
+      alb.ingress.kubernetes.io/scheme: "internal"
+      alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-central-1:860702706577:certificate/3bce1dc0-e691-4521-9fca-4f5430776282"
+      alb.ingress.kubernetes.io/healthcheck-interval-seconds: "5"
+      alb.ingress.kubernetes.io/healthcheck-path: "/actuator/health"
+      alb.ingress.kubernetes.io/healthcheck-port: "traffic-port"
+      alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "2"
+      alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+      alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+      alb.ingress.kubernetes.io/load-balancer-attributes: "idle_timeout.timeout_seconds=120"
+      alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS-1-2-2017-01"
+  hosts:
+    - name: chartmuseum-h.hybris.eia.amway.net
+      path: /*

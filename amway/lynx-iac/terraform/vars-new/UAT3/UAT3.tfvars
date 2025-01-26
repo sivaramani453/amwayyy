@@ -1,0 +1,5 @@
+ec2_env_suffix = "eu"
+ec2_private_ip_be1 = "10.130.123.112"                                                                             
+ec2_private_ip_be2 = "10.130.123.113"
+ec2_private_ip_fe1 = "10.130.123.114"
+ec2_private_ip_fe2 = "10.130.123.115"

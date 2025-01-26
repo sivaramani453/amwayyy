@@ -1,0 +1,51 @@
+{
+  "variables": {
+    "aws_region": "us-east-1",
+    "aws_vpc": "vpc-0f09ff71922bacf3a",
+    "aws_subnet": "subnet-0a976f7823f870280",
+    "github_token": "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",
+    "is_public": "true"
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "{{user `aws_region`}}",
+    "iam_instance_profile": "github-role",
+    "vpc_id": "{{user `aws_vpc`}}",
+    "subnet_id": "{{user `aws_subnet`}}",
+    "source_ami_filter": {
+      "filters": {
+      "virtualization-type": "hvm",
+      "name": "al2023-ami-2023.5.20240701.0-kernel-6.1-x86_64",
+      "root-device-type": "ebs"
+      },
+      "owners": ["amazon"],
+      "most_recent": true
+    },
+    "instance_type": "t3.large",
+    "ssh_username": "ec2-user",
+    "associate_public_ip_address": "{{user `is_public`}}",
+    "ami_name": "ga-runner-auto {{ isotime `2006-01-02-03-04` }}",
+    "tags": {
+      "Name": "GitHub self-hosted runner for autotest repos",
+      "OwnedBy": "Sivakumar Ramani",
+      "ApplicationID": "APP1433689",
+      "DataClassification": "Internal",
+      "Environment": "DEV" 
+    }
+  }],
+  "provisioners": [
+    {
+      "type": "shell-local",
+      "inline": "cd ../ansible-eu/github-actions/autotests-runner && ansible-galaxy install -r requirements.yaml -p ../../roles/ -f"
+    },
+    {
+      "type": "ansible",
+      "extra_arguments": [
+        "-v", "--extra-vars", "github_token={{ user `github_token` }}"
+      ],
+      "playbook_file": "../ansible-eu/github-actions/autotests-runner/main.yaml"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+---
+jrebel_artifact_url: "https://nexus.hybris.eia.amway.net/repository/static-files/static-dev/jrebel"
+jrebel_artifact_name: "jrebel-latest-nosetup.zip"
+jrebel_download_path: "/tmp"
+jrebel_dest_path: "/opt"
+jrebel_user: "hybris"
+jrebel_group: "hybris"

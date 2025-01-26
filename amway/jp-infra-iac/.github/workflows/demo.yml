@@ -1,0 +1,26 @@
+name: Demo cluster - deploy
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  cluster_infra:
+    uses: AmwayCommon/jp-cicd-workflows/.github/workflows/aws-iac-deploy.yml@v0
+    with:
+      project_dir: projects/demo/stacks/cluster-infra
+
+  cluster_network:
+    needs: cluster_infra
+    uses: AmwayCommon/jp-cicd-workflows/.github/workflows/aws-iac-deploy.yml@v0
+    with:
+      project_dir: projects/demo/stacks/cluster-network
+
+  cluster_addons:
+    needs: [cluster_infra, cluster_network]
+    uses: AmwayCommon/jp-cicd-workflows/.github/workflows/aws-iac-deploy.yml@v0
+    with:
+      project_dir: projects/demo/stacks/cluster-addons

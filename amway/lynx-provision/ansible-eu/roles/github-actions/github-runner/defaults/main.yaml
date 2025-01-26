@@ -1,0 +1,15 @@
+runner_user: github
+runner_group: github
+runner_workdir: ga
+github_token: "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"
+
+runner_dependencies:
+  - unzip
+  - zlib
+  - openssl
+  - lttng-ust
+  - openssl-libs
+  - krb5-libs
+  - libicu
+  - krb5-libs
+

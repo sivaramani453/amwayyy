@@ -1,0 +1,25 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "iam:DeleteAccessKey",
+                "iam:AttachUserPolicy",
+                "iam:DeleteUserPolicy",
+                "iam:DeleteUser",
+                "iam:ListUserPolicies",
+                "iam:CreateUser",
+                "iam:CreateAccessKey",
+                "iam:RemoveUserFromGroup",
+                "iam:ListGroupsForUser",
+                "iam:PutUserPolicy",
+                "iam:ListAttachedUserPolicies",
+                "iam:DetachUserPolicy",
+                "iam:ListAccessKeys"
+            ],
+            "Resource": "arn:aws:iam::860702706577:user/vault-*"
+        }
+    ]
+}

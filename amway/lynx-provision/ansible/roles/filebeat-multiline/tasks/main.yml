@@ -1,0 +1,26 @@
+---
+- name: Set ELASTIC_BRANCH from version
+  set_fact:
+    ELASTIC_BRANCH: "{{ filebeat_version.split('.')[0] }}"
+    filebeat_version_suffix: "{{ filebeat_version.split('.')[1] }}"
+
+- name: Set filebeat_specific_version if specified
+  set_fact:
+    filebeat_specific_version: "{{ filebeat_version }}"
+  when: filebeat_version_suffix != 'x'
+
+- name: Setting elastic values
+  set_fact:
+    elasticsearch: "{{ elasticsearch | combine(es) }}"
+  when: es is defined
+
+- name: Setting logstash output values if defined
+  set_fact:
+    elasticsearch: "{{ elasticsearch | combine(ls) }}"
+  when: ls is defined and filebeat_output != "elasticsearch"
+
+- name: Run on platform
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_os_family }}.yml"
+    - not-supported.yml

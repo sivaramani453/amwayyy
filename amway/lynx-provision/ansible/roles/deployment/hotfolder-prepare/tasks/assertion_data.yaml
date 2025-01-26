@@ -1,0 +1,32 @@
+---
+- name: Make sure that hotfolder contains file structure
+  become: true
+  become_user: hybris
+  file:
+    owner: hybris
+    path: "{{ hotfolder_path }}/amway/master"
+    state: directory
+    recurse: true
+    mode: '0755'
+
+- name: Switch to amway master directory and store relative symlink
+  become: true
+  become_user: hybris
+  shell: |
+    cd {{ hotfolder_path }}/amway/master/
+    ln -s ../../../media/assertion_data assertion_data
+  args:
+    executable: /bin/bash
+  register: symlink_result
+
+- name: Make sure that symlink exist
+  become: true
+  become_user: hybris
+  file:
+#    src: "/opt/media/assertion_data"
+#    dest: "{{ hotfolder_path }}/amway/master/assertion_data"
+    src: "../../../media/assertion_data"
+    dest: "assertion_data"
+    state: link
+    force: true
+    follow: false

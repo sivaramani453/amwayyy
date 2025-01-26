@@ -1,0 +1,180 @@
+---
+- name: Setting default values
+  set_fact:
+    path: '{{ path | combine(win.path) }}'
+    ssl: '{{ ssl | combine(win.ssl) }}'
+
+- name: output beats version
+  delegate_to: localhost
+  uri:
+    url: https://api.github.com/repos/elastic/beats/releases/latest
+    method: GET
+    return_content: yes
+    validate_certs: yes
+  register: github
+
+- name: set github tag
+  set_fact:
+    gtag: '{{ github.content }}'
+
+- name: set last filebeat version
+  set_fact:
+    filebeat_last_version: '{{ gtag.tag_name[1:] }}'
+
+- name: Set filebeat_specific_version if specified
+  set_fact:
+    filebeat_specific_version: '{{ filebeat_last_version }}'
+  when: filebeat_version_suffix == 'x'
+
+- name: Set filebeat_inputs_type
+  set_fact:
+    filebeat_inputs_type: type
+  when: filebeat_specific_version is version_compare('6.0.0', operator='ge', strict=True)
+
+- name: Set filebeat_inputs_name
+  set_fact:
+    filebeat_inputs_name: inputs
+  when: filebeat_specific_version is version_compare('6.3.0', operator='ge', strict=True)
+
+- name: Create temporary build directory
+  win_tempfile:
+    state: directory
+    suffix: fbeat
+  register: tmp
+
+- name: Setup path folders
+  win_file:
+    path: '{{ path_folder.value }}'
+    state: directory
+  with_dict: '{{ path }}'
+  loop_control:
+    loop_var: path_folder
+
+- name: Download filebeat
+  win_get_url:
+    url: 'https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-{{ filebeat_specific_version }}-windows-x86_64.zip'
+    dest: '{{ tmp.path }}\filebeat.zip'
+    force: no
+
+- name: Unzip filebeat
+  win_unzip:
+    src: '{{ tmp.path }}/filebeat.zip'
+    dest: '{{ tmp.path }}'
+    creates: '{{ tmp.path }}/filebeat-{{ filebeat_specific_version }}-windows-x86_64'
+
+- name: Copy files to home directory
+  win_copy:
+    src: '{{ tmp.path }}/filebeat-{{ filebeat_specific_version }}-windows-x86_64/'
+    dest: '{{ path.home }}/'
+    force: no
+    remote_src: yes
+
+- name: Download awk
+  win_copy:
+    src: '{{ role_path }}/files/awk.zip'
+    dest: '{{ tmp.path }}\awk.zip'
+    force: no
+
+- name: Unzip awk
+  win_unzip:
+    src: '{{ tmp.path }}\awk.zip'
+    dest: '{{ win_awk_install_path }}'
+    creates: '{{ win_awk_install_path }}'
+
+- name: Ensure that awk is in PATH
+  win_path:
+    elements:
+      - '{{ win_awk_install_path }}\bin'
+      - '{{ path.home }}'
+    state: present
+
+- name: check awk
+  win_shell: 'awk --version'
+  changed_when: false
+
+- name: templating filebeat in/out configuration
+  win_template:
+    src: 'filebeat-{{ conf }}.yml.j2'
+    dest: '{{ path.config }}\filebeat-{{ conf }}.yml'
+  with_items:
+    - 'in'
+    - 'out'
+  loop_control:
+    loop_var: conf
+
+- name: Creating directories for awk
+  win_file:
+    path: '{{ path.config }}\{{ config_dir }}'
+    state: directory
+  with_items:
+    - "awk.d"
+    - "parsers.d"
+    - "inputs.d"
+  loop_control:
+    loop_var: config_dir
+
+- name: copy awk functions
+  win_copy:
+    src: '{{ role_path }}/files/awk.d/'
+    dest: '{{ path.config }}/awk.d'
+
+- name: templating awk parsers
+  win_template:
+    src: '{{ parser_file }}'
+    dest: "{{ path.config }}\\parsers.d\\{{ parser_file | win_basename | regex_replace('.j2','') }}"
+  with_fileglob:
+    - ../templates/parsers.d/*.awk.j2
+  loop_control:
+    loop_var: parser_file
+
+- name: List parsers
+  win_find:
+    paths: '{{ path.config }}/parsers.d/'
+    patterns: "*"
+  register: awk_files
+
+- name: templating awk pipeline
+  win_template:
+    src: 'parsing-pipeline.awk.j2'
+    dest: '{{ path.config }}/parsing-pipeline.awk'
+
+- name: templating default input
+  win_template:
+    src: 'input.yml.j2'
+    dest: '{{ path.config }}\inputs.d\input-{{ fb_input.name }}.yml'
+  with_items: '{{ filebeat.inputs }}'
+  loop_control:
+    loop_var: fb_input
+
+- name: templating custom inputs
+  template:
+    src: 'input.yml.j2'
+    dest: '{{ path.config }}\inputs.d\input-{{ fb_input.name }}.yml'
+  with_items: '{{ filebeat_inputs }}'
+  loop_control:
+    loop_var: fb_input
+  when: filebeat_inputs is defined
+
+# Check this
+- name: Copy service file
+  win_template:
+    src: filebeat-template.bat.j2
+    dest: '{{ path.home }}\\filebeat-pipeline.bat'
+
+- name: Install nssm
+  win_chocolatey:
+    name: nssm
+    state: present
+
+# # Idempotence test fails due https://github.com/ansible/ansible/issues/20625 bug.
+- name: Create service via nssm
+  win_nssm:
+    name: '{{ filebeat_service_name }}'
+    application: '{{ path.home }}\\filebeat-pipeline.bat'
+    state: present
+  changed_when: False
+
+- name: start a services
+  win_service:
+    name: '{{ filebeat_service_name }}'
+    state: started

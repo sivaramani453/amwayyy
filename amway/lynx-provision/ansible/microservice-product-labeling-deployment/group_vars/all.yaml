@@ -1,0 +1,69 @@
+## 
+isProd: false
+
+## docker settings
+docker_registry_name: "nexus.hybris.eia.amway.net:8083"
+docker_registry_username: "docker"
+docker_registry_password: "docker"
+
+## vault settings
+vault_user: ""
+vault_password: ""
+vault_crt_kv_path: "kv/data/product-labeling/amway.pfx"
+vault_lic_kv_path: "kv/data/product-labeling/cprocsp_license_04_dev"
+
+###
+amway_dev_crt_checksum: "f0d247de5d83c7ac541ba165534d91e562ba3ee0"
+amway_prod_crt_checksum: "7b6f9ea6a713f9b036c4afbb432153b3c4b4c25c"
+
+## docker image settings
+docker_container_name: "microservice_product_labeling"
+docker_image_name: "microservice-product-labeling"
+docker_image_version: "latest"
+docker_image_ttl: "24h"
+docker_env_spring_pgsql_port: 5432
+docker_env_spring_pgsql_hostname_name: "product-labeling-qa-postgresql.hybris.eia.amway.net"
+docker_env_spring_pgsql_database_name: "product_labeling"
+docker_env_spring_pgsql_username: "product_labeling_user"
+docker_env_spring_pgsql_password: "product_labeling_pass"
+
+docker_env_spring_mssql_hostname: "rds-product-labeling-test.clyiioiw1agv.eu-central-1.rds.amazonaws.com"
+docker_env_spring_mssql_port: 1433
+docker_env_spring_mssql_database_name: "product_labeling"
+docker_env_spring_mssql_username: "product_labeling_login"
+docker_env_spring_mssql_password: "product_labeling_pass"
+
+docker_env_cprocsp_key: "123456"
+docker_env_cer_mnt_path: "/opt/docker-build/certificates"
+docker_env_cprocsp_lic_number: ""
+
+## filebeat logging
+LogsEnabled: false
+beats_version: 7.8.1
+oss_version: true
+beat: filebeat
+beat_conf:
+  filebeat:
+   inputs:
+    - type: docker
+      containers:
+        ids: 
+         - '*'
+        paths:
+         - /var/lib/docker/containers/*/*.log
+      processors:
+         - add_docker_metadata: ~
+      enabled: true
+      exclude_lines: ['.*CF209.*', '.*CF202.*', '.*CF20K.*', '.*CF20X.*', '.*certmgr.*']
+      json.keys_under_root: true
+      json.add_error_key: false
+      json.message_key: log
+   setup:
+      template:
+        name: 'product-labeling'
+        pattern: 'product-labeling-*'
+        enabled: true                 
+output_conf:
+   elasticsearch:
+        hosts: ["https://vpc-aws-elasticsearch-5unizluspnic6n5zudjomi7eam.eu-central-1.es.amazonaws.com:443"]
+        index: "product-labeling-%{+yyyy.MM.dd}"    

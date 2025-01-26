@@ -1,0 +1,54 @@
+---
+- name: Ensure necessary packages are available
+  become: true
+  yum:
+    name: unzip
+    state: latest
+
+- name: Download Sonar Scanner archive
+  become: true
+  get_url:
+    url: "{{ sonar_scanner_url }}"
+    dest: "{{ sonar_workdir }}/{{ sonar_scanner_zip }}"
+  register: sonar_downloaded
+  until: sonar_downloaded is succeeded
+  retries: 3
+  delay: 2
+
+- name: Unpack Sonar Scanner archive
+  become: true
+  unarchive:
+    src: "{{ sonar_workdir }}/{{ sonar_scanner_zip }}"
+    dest: "{{ sonar_workdir }}"
+    remote_src: true
+
+- name: Move Sonar Scanner into installation dir
+  become: true
+  command: >
+            mv "{{ sonar_workdir }}/{{ sonar_scanner_unzip }}"
+            "{{ sonar_scanner_dir }}"
+  args:
+    creates: "{{ sonar_scanner_dir }}"
+
+- name: Creating default configuration
+  become: true
+  template:
+    src: sonar-scanner.properties.tmpl
+    dest: "{{ sonar_scanner_dir }}/conf/sonar-scanner.properties"
+    mode: 0644
+    backup: true
+
+- name: Make sure Sonar Scanner may launch successfully
+  command: "{{ sonar_scanner_dir }}/bin/sonar-scanner -v"
+  register: command_result
+  failed_when: command_result.rc != 0
+  changed_when: false
+
+- name: Cleanup temporary data
+  become: true
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ sonar_workdir }}/{{ sonar_scanner_unzip }}"
+    - "{{ sonar_workdir }}/{{ sonar_scanner_zip }}"

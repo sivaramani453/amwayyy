@@ -1,0 +1,54 @@
+## data disk options
+pgsql_data_filesystem_type: "xfs"
+pgsql_data_mount_path: "/opt/postgres/data"
+pgsql_data_mount_opts: "defaults,noatime"
+
+## postgresql config options
+pgsql_max_connections: "100"
+
+## docker settings
+docker_registry_name: "nexus.hybris.eia.amway.net:8083"
+docker_registry_username: ""
+docker_registry_password: ""
+docker_version: "19.03.8"
+docker_users:
+  - "centos"
+daemon_conf:
+  storage-driver: overlay2
+  log-driver: "json-file"
+  log-opts:
+    max-size: "256m"
+    max-file: "2"
+    
+## docker image settings
+docker_container_name: "postgresql_product_labeling_db"
+docker_image_name: "postgres11-product-labeling"
+docker_image_version: "1.5"
+docker_env_pgsql_database_name: "product_labeling"
+docker_env_pgsql_username: "product_labeling_user"
+docker_env_pgsql_password: "product_labeling_pass"
+
+## archive settings
+archive_pgsql_username: "{{ docker_env_pgsql_username }}"
+archive_pgsql_password: "{{ docker_env_pgsql_password }}"
+archive_pgsql_schema: "product_labeling_archive"
+archive_user: "centos"
+archive_group: "centos"
+archive_user_home: "/home/centos"
+archive_cron_special_time: "weekly"
+archive_cron_job: "{{ archive_user_home }}/run_dump_partition.sh"
+archive_efs_mountpoint_dest: "/opt/archive"
+archive_efs_mountpoint_src: ""
+
+## postgresql packages
+pg_repo_url: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+pg_packages:
+ - "postgresql11-server"
+
+## pip packages
+pip_packages:
+ - "docker"
+ - "pyyaml"
+## pip3 packages
+pip3_packages:
+ - "psycopg2-binary"

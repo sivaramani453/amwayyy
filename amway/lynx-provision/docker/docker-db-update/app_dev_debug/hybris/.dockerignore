@@ -1,0 +1,9 @@
+**/CODEOWNERS
+**/Dockerfile
+**/*.md
+**/README
+**/VERSION
+**/.DS_Store
+**/.gitignore
+**/.git
+**/.dockerignore

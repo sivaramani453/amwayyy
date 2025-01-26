@@ -1,0 +1,65 @@
+{
+  "variables": {
+    "aws_access_key": "",
+    "aws_secret_key": "",
+    "download_hybris_url": "https://nexus.hybris.eia.amway.net/repository/static-files/hybris/last_6.6.0.19.zip"
+  },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "access_key": "{{user `aws_access_key`}}",
+      "secret_key": "{{user `aws_secret_key`}}",
+      "region": "eu-central-1",
+      "source_ami_filter": {
+        "filters": {
+          "virtualization-type": "hvm",
+          "name": "centos7-golden*",
+          "root-device-type": "ebs"
+        },
+        "owners": [
+          "860702706577"
+        ],
+        "most_recent": true
+      },
+      "vpc_id": "vpc-1fbfbe76",
+      "subnet_id": "subnet-00ab367d",
+      "launch_block_device_mappings": [
+        {
+          "delete_on_termination": true,
+          "device_name": "/dev/sda1",
+          "volume_type": "gp2",
+          "volume_size": 15
+        }
+      ],
+      "instance_type": "t3.xlarge",
+      "ssh_username": "centos",
+      "associate_public_ip_address": false,
+      "ami_name": "dev-debug-{{ isotime \"2006-01-02-03-04\" }}",
+      "tags": {
+        "Name": "created by packer",
+        "ApplicationID": "APP1433689",
+        "DataClassification": "Internal",
+        "Environment": "DEV"
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell-local",
+      "inline": "cd ../ansible/dev-debug && ansible-galaxy install -r requirements.yml -p ../roles/ -f"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo sed -i '$ a ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC2tPISkT8O76W0ZoDzZ2vxrAfH7BulmBIfNwDYM5gyLWZx9y+7i7xGbF/i56OFcmgG5zuVuYGbs62+147Kvj+9CEhK0Z13J8IOuZgFwz5ENSjp43ov9wXaxQ3RlkHnKhhF4xQU+OGvF+aoxPIBM7os/lWP0szNbPT/4WteZTIONBgg4LA02V0m401g72Rg04IlJc8H8YrgvZPnZDuf7KDklY47Z/9Uq2h+qp0tb6L8psoBOClkU4/se1FWgnXocj3FcxnfAmlI1p5d4D8zXIHJn1K3CQFsDmLN5NmtcOy44foQ55IM4K6/m/yCB4IBh7tFeIaWkcUb+qmSf1U0tv7V' /root/.ssh/authorized_keys"
+      ]
+    },
+    {
+      "type": "ansible",
+      "extra_arguments": [
+        "-v", "--extra-vars", "download_hybris_url={{user `download_hybris_url`}}"
+      ],
+      "playbook_file": "../ansible/dev-debug/bootstrap.yml"
+    }
+  ]
+}

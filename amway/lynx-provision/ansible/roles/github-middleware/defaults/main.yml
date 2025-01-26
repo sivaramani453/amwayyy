@@ -1,0 +1,11 @@
+---
+service_host: "127.0.0.1"
+service_port: 8080
+service_user_name: "middleware"
+service_user_group: "middleware"
+service_identifier: "github-middleware"
+service_home: "/opt/middleware"
+service_exec_file: "github-middleware.py"
+
+proxy_server_name: "middleware.hybris.eia.amway.net"
+proxy_http_port: 8888

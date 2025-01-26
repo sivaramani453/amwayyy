@@ -1,0 +1,32 @@
+---
+- name: Transform datadir to hotfolder symlink
+  block:
+    - name: Cleanup hotfolder and move data there
+      become: True
+      become_user: hybris
+      script: transform.sh {{ hotfolder_path }}
+
+
+    - name: delete data src (shold be already empty dir)
+      become: True
+      become_user: hybris
+      file:
+        path: "{{ hybris_data_path }}"
+        state: absent
+
+    - name: Create symlink to hotfolder
+      become: True
+      become_user: hybris
+      file:
+        path: "{{ hybris_data_path }}"
+        state: link
+        src: "{{ hotfolder_path }}/amway"
+  rescue:
+    - name: Notify about failure
+      include_tasks: notify.yaml
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Could not create/prepare hotfolder on be2 node"
+
+    - name: Now fail real
+      fail:
+        msg: "Could not properly prepare hotfolder"

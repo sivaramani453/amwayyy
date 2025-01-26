@@ -1,0 +1,72 @@
+## 
+download_tmp_path: '/tmp'
+
+## vault
+vault_version: '1.1.3'
+vault_archive_name: 'vault_{{ vault_version }}_linux_amd64.zip'
+vault_url: 'https://releases.hashicorp.com/vault/{{ vault_version }}/{{ vault_archive_name }}'
+vault_version_checksum: 'sha256:https://releases.hashicorp.com/vault/{{ vault_version }}/vault_{{ vault_version }}_SHA256SUMS'
+vault_bin_path: '/usr/bin'
+
+## rclone
+rclone_version: 'v1.51.0'
+rclone_version_checksum: 'sha256:98eeadf4bb937cda6080a5378f5682c5eb3bb69795fe1faffa8c1f40b37fc336'
+rclone_package_name: 'rclone-{{ rclone_version }}-linux-amd64.rpm'
+rclone_url: 'https://downloads.rclone.org/{{ rclone_version }}/{{ rclone_package_name }}'
+
+## repositories
+repo_urls:
+  - 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm'
+  - 'https://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm'
+
+## docker-compose
+docker_compose_version: '1.25.4'
+docker_compose_url: 'https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-Linux-x86_64'
+docker_compose_path: '/usr/bin/docker-compose'
+
+## docker
+docker_registry_name: 'nexus.hybris.eia.amway.net:8083'
+docker_registry_username: ''
+docker_registry_password: ''
+docker_version: '19.03.8'
+docker_users:
+  - 'centos'
+daemon_conf:
+  storage-driver: overlay2
+  log-driver: 'json-file'
+  log-opts:
+    max-size: '256m'
+    max-file: '2'
+docker_build_dirs:
+   - '/opt/docker-build/hybris'
+   - '/opt/docker-build/archive'
+   - '/opt/docker-build/flags'
+   - '/opt/docker-build/persistent-storage/hybris-media'
+   - '/opt/docker-build/persistent-storage/mysql5.6-data'
+   - '/opt/docker-build/persistent-storage/solr7.1-data'
+
+## additional system packages
+system_packages:
+   - 'vim'
+   - 'joe'
+   - 'zip'
+   - 'unzip'
+   - 'curl'
+   - 'wget'
+   - 'net-tools'
+   - 'python2-pip'
+   - 'python3'
+   - 'python3-pip'  
+   - 'jq'
+   - 'git'
+   - 'pigz'
+   - 'mysql-community-client'
+## pip packages
+pip_packages:
+   - 'awscli'
+   - 'docker'
+   - 'pyyaml'
+## pip3 packages
+pip3_packages:
+   - 'requests'
+   - 'bs4'

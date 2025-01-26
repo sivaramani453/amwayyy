@@ -1,0 +1,8 @@
+---
+- import_tasks: install_tools.yml 
+
+- import_tasks: install_vnc.yml
+
+- import_tasks: install_google_chrome.yml
+
+- import_tasks: write_to_hosts.yml  

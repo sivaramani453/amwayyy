@@ -1,0 +1,14 @@
+- name: Assemble Consul cluster
+  hosts: consul_instances
+  any_errors_fatal: true
+  become: true
+  become_user: root
+  pre_tasks:
+    - name: "Fix wrong OS identification issue"
+      set_fact:
+        ansible_os_family: "Amazon"
+  roles:
+    - brianshumate.consul
+  vars:
+    consul_addresses_http: "0.0.0.0"
+    consul_bin_path: "/usr/local/bin"

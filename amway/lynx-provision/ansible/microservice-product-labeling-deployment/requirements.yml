@@ -1,0 +1,2 @@
+- src: elastic.beats
+  version: 7.8.1

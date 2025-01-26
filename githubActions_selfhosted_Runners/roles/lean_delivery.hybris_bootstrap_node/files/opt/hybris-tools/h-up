@@ -1,0 +1,389 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import glob
+#import zipfile
+import argparse
+import re
+import os
+import shutil
+import subprocess
+import urllib
+import urllib2
+import sys
+import time
+from bs4 import *
+from urlparse import urlparse, urlunparse
+
+setting = "/etc/default/h-tools"
+
+# To check if ant target has no issues. Basic error counter
+# default value is 0
+EXITCODE = 0
+
+
+red_color = "\033[1;31m"
+no_color = '\033[0m'
+
+
+def unpack(download_path, upload_dir):
+    archives = glob.glob(download_path)
+    for archive in archives:
+        print "Unpack " + archive
+# The following action is temporarily disabled due to issue with Hybris 1905
+# https://github.com/lean-delivery/ansible-role-hybris-bootstrap-node/issues/12
+#        with zipfile.ZipFile(archive) as zf:
+#            zf.extractall(upload_dir)
+        os.system("unzip -o -q "+ archive +" -d "+ upload_dir)
+        if config["remove_packages"]:
+            print "Remove " + archive
+            try:
+                os.remove(archive)
+            except OSError:
+                print "file " + archive + " not found"
+                pass
+    pass
+
+
+# FIXME: remove copypaste
+def update_owner(path, username, group):
+    if not os.path.exists(path):
+        print "Creating directory " + path
+        os.makedirs(path)
+    print "Update owner on " + path
+    dir_path = subprocess.Popen(['chown', username + ":" + group, '-R', path], stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+    out, err = dir_path.communicate()
+    print out
+    print err
+    pass
+
+
+def restore_attr(path, attr):
+    chmod_run = subprocess.Popen(['chmod', attr, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = chmod_run.communicate()
+    print out
+    print err
+    pass
+
+
+def h_ant(ant_target, hybris_user, platform_home):
+    # error status
+    ant_error_status = False
+    # if EXITCODE=0
+    global EXITCODE
+    if not EXITCODE:
+        h_ant_run = subprocess.Popen(['su', hybris_user, '-c', '. ./setantenv.sh && ant ' + ant_target],
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=platform_home)
+        log_out = []
+        while True:
+            line = h_ant_run.stdout.readline()
+            if line != '':
+                print line.rstrip()
+                log_out.append(line.rstrip())
+            else:
+                break
+        while True:
+            err_line = h_ant_run.stderr.readline()
+            if err_line != '':
+                print red_color + "Build failed:" + no_color
+                print red_color + err_line.rstrip() + no_color
+                ant_error_status = True
+            else:
+                break
+        # if get_error is True
+        # need get exit code from subprocess h_ant_run
+        # write this errcode to global variable _EXITCODE
+        if ant_error_status:
+            EXITCODE = h_ant_run.returncode
+        return log_out
+        pass
+    else:
+        # return empty list
+        return []
+
+
+def h_logparcer(src_log, template):
+    log_errors = []
+    for log_line in src_log:
+        result = re.search(template, log_line)
+        if result:
+            log_errors.append(result.group(1))
+    if log_errors:
+        print >> sys.stderr, red_color + "Captured expressions:" + no_color
+        print >> sys.stderr, red_color + "Number of errors in log: " + no_color, len(log_errors)
+        for element in log_errors:
+            print >> sys.stderr, red_color + "ERROR: " + element + no_color
+        print >> sys.stderr, red_color + "Task failed." + no_color
+        sys.exit(1)
+    else:
+        print "No expressions found"
+    pass
+
+
+# check whether Nexus Repository Manager is behind the given url
+def check_if_nexus(url):
+    url_for_test = urlunparse(urlparse(url)._replace(path=""))
+    page = urllib2.urlopen(url_for_test)
+    parsed_html = BeautifulSoup(page.read(), 'html.parser')
+    if parsed_html.title.get_text() == "Nexus Repository Manager":
+        print "Nexus Repository Manager detected"
+        return True
+
+def repeat(times):
+    def inner(func):
+        def wrapper(*args, **kwargs):
+            for i in range(times):
+                result = func(*args, **kwargs)
+                if result:
+                    return result
+                time.sleep(10)
+            raise RuntimeError("Function {0} did not succeed via {1} attempts".format(func.__name__, times))
+        return wrapper
+    return inner
+
+@repeat(3)
+def download_from_ext_loc(url, path):
+    filename, headers = urllib.urlretrieve(url, path)
+    if headers.has_key("Content-Length"):
+        l = headers.get("Content-Length")
+        rl = os.path.getsize(filename)
+
+        if int(l) != rl:
+            return False
+    return True
+    
+
+def get_artifact(baseurl, download_dir):
+    if 's3://' in baseurl:
+        get_artifact_from_s3(baseurl, download_dir)
+        return
+
+    soup = BeautifulSoup(urllib2.urlopen(baseurl), "lxml")
+    # FIXME: move regex to setting. dirty hack
+    links = soup.findAll('a', href=True, text=re.compile('.zip'))
+    nexus = check_if_nexus(baseurl)
+    for link in links:
+        if nexus:
+            download_url = link.get('href')
+        else:
+            download_url = baseurl + link.text
+        print "Downloading artifact {0} from URL: {1}".format(link.text, download_url)
+        download_from_ext_loc(download_url, download_dir + "/" + link.text)
+
+
+def get_artifact_from_s3(baseurl, download_dir):
+    import boto3
+
+    bucketName = baseurl.split("://")[1].split("/")[0]
+    build = "/".join(baseurl.split("://")[1].split("/")[1:])
+    bucket = boto3.resource('s3').Bucket(bucketName)
+
+    zipsList = []
+    for obj in bucket.objects.filter(Prefix=build):
+        if '.zip' in obj.key:
+            zipsList.append(obj.key)
+    if not zipsList:
+        print 'Build not found: ' + baseurl
+        sys.exit(1)
+    for zipFile in zipsList:
+        print 'Download ' + zipFile
+        bucket.download_file(zipFile, download_dir + "/" + os.path.basename(zipFile))
+
+
+def select_config(srcpath, dstpath):
+    if os.path.isfile(srcpath):
+        shutil.copy2(srcpath, dstpath)
+        print "File " + srcpath + " placed in to " + dstpath
+    else:
+        print "File not found: " + srcpath + " Copy skipped."
+    pass
+
+
+if __name__ == "__main__":
+    config = {}
+    execfile(setting, config)
+    # python 3: exec(open(setting).read(), config)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--updateonly', action='store', dest='d_path', 
+                        help='Update only selected archive')
+    parser.add_argument('--initialize', nargs='?', const=True, default=False, dest='h_init',
+                        help='Runs Hybris initialization')
+    parser.add_argument('--updatesystem', nargs='?', const=True, default=False, dest='h_sysupdate', 
+                        help='Runs Hybris system update')
+    parser.add_argument('--incrementalupdate', action='store_true', dest='h_incresysupdate',
+                        help='Runs Hybris system update with migration module')
+    parser.add_argument('--updatesystem-lite', nargs='?', const='', default=False, dest='h_sysupdate_lite', 
+                        help='Runs Hybris system update without ant build and ant server components')
+    parser.add_argument('--deploy-release', action='store', dest='deploy_version', 
+                        help='Deploy from artifact storage')
+    parser.add_argument('--drop-typesystem', action='store', dest='drop_typesystem', 
+                        help='Drop type system')
+    parser.add_argument('--create-typesystem', action='store', dest='create_typesystem', 
+                        help='Create new type system and write it to local.properties')
+    parser.add_argument('--server-type', action='store', dest='server_type', 
+                        help='Property for server type: be, fe, batch to copy appropriate local.property, i.e. config/environments/<env_type>/<server_type>.local.properties')
+    parser.add_argument('--env-type', action='store', dest='env_type', 
+                        help='Property for environment name: qa1, prod, perf to copy appropriate local.property located in config/environments/<env_type> folder')
+    parser.add_argument('--purge-hybris-home', action='store_true', dest='purge_hybris_home', 
+                        help='Clean Hybris home directory')
+    args = parser.parse_args()
+    ant_log_out = []
+
+    # insert/update keys from config with keys and values from arguments
+    # put None value if there is no keys from args in config
+    for pArg, pValue in args.__dict__.items():
+        if pValue:
+            if pArg in config.keys():
+                config[pArg] = pValue
+            else:
+                config.setdefault(pArg, pValue)
+        else:
+            if pArg not in config.keys():
+                config.setdefault(pArg, pValue)
+
+    # TODO: need recheck solution
+    if config["deploy_version"] and (not config["d_path"] and config["purge_hybris_home"]):
+        try:
+            leave_dirs = []
+            if config["h_sysupdate"] or config["h_sysupdate_lite"]:
+                leave_dirs.append('data')
+            if config["keep_log_dir"]:
+                leave_dirs.append('log')
+            if leave_dirs:
+                for item in os.listdir(config["hybris_path"]):
+                    if item not in leave_dirs:
+                        shutil.rmtree(config["hybris_path"] + "/" + item, ignore_errors=False, onerror=None)
+            else:
+                shutil.rmtree(config["hybris_path"], ignore_errors=False, onerror=None)
+        except OSError:
+            pass
+
+    if config["deploy_version"]:
+        get_artifact(config["artifact_storage"].rstrip('/') + "/" + config["deploy_version"] + "/", config["download_dir"])
+        pass
+
+    if config["d_path"]:
+        unpack(config["d_path"], config["upload_dir"])
+    else:
+        unpack(config["download_dir"] + "/" + config["download_mask"], config["upload_dir"])
+
+    update_owner(config["hybris_path"], config["username"], config["groupname"])
+    # ANT
+    restore_attr(config["ant_home"] + "/bin/ant", "+x")
+    # lic
+    restore_attr(config["platform_home"] + "/license.sh", "+x")
+
+    # To use this section need to set legacy_structure = False in /etc/default/h-tools
+    # Run custom ant deploy target if env_type and/or server_type are defined
+    # Run ant deploy with -Denv and -Dtype will copy the right local.properties file to the config dir
+    if not config["legacy_structure"]:
+        print "[INFO] The reconfigured git repo structure is used to run this script"
+        if (((config["h_init"] or config["h_sysupdate"]) and config["deploy_version"]) or (not (config["h_init"] or config["h_sysupdate"]) and config["deploy_version"])):
+            if (config["server_type"] or config["env_type"]):
+                if (config["server_type"] and config["env_type"]):
+                    ant_log_out.append(h_ant("deploy -Denv={env_type} -Dtype={server_type}".format(env_type=config["env_type"], 
+                                                                                                   server_type=config["server_type"]), 
+                                             config["username"], config["hybris_custom_ant_targets_path"]))
+                elif config["env_type"]:
+                    ant_log_out.append(h_ant("deploy -Denv={env_type}".format(env_type=config["env_type"]), 
+                                             config["username"], config["hybris_custom_ant_targets_path"]))
+            else:
+                ant_log_out.append(h_ant("deploy", config["username"], config["platform_home"]))
+        
+        if config["drop_typesystem"]:
+            ant_log_out.append(h_ant("droptypesystem -DtypeSystemName="+config["drop_typesystem"], config["username"], config["hybris_custom_ant_targets_path"]))
+
+        if config["create_typesystem"]:
+            # create new type system
+            ant_log_out.append(h_ant("createtypesystem -DtypeSystemName="+config["create_typesystem"], config["username"], config["hybris_custom_ant_targets_path"]))
+            # write new type system to local.properties
+            with open(config["hybris_path"]+"/config/local.properties", 'r') as fin:
+                data = fin.read().splitlines(True)
+                need_append = True
+                for i,line in enumerate(data):
+                    if "db.type.system.name" in line:
+                        data[i] = "db.type.system.name="+config["create_typesystem"]+"\n"
+                        need_append = False
+                        break
+                if need_append:
+                    data.append("\ndb.type.system.name="+config["create_typesystem"]+"\n")
+            with open(config["hybris_path"]+"/config/local.properties", 'w') as fout:
+                fout.writelines(data)
+            
+        if config["h_init"]:
+            if isinstance(config["h_init"], bool):
+                ant_log_out.append(h_ant("initialize", config["username"], config["platform_home"]))
+            elif isinstance(config["h_init"], str):
+                ant_log_out.append(h_ant("initialize -DconfigFile=" + config["h_init"], config["username"],
+                                         config["platform_home"]))
+        if config["h_sysupdate"]:
+            # h_sysupdate value can be bool (True, without config file) or string (path to custom config file)
+            # In case of string value (path to custom config file) we will call ant updatesystem with -DconfigFile param
+            if isinstance(config["h_sysupdate"], bool):
+                ant_log_out.append(h_ant("updatesystem", config["username"], config["platform_home"]))
+            elif isinstance(config["h_sysupdate"], str):
+                ant_log_out.append(h_ant("updatesystem -DconfigFile=" + config["h_sysupdate"], config["username"],
+                                         config["platform_home"]))
+        if config["h_incresysupdate"]:
+            ant_log_out.append(h_ant("incrementalupdate", config["username"], config["platform_home"]))
+
+    # legacy_structure = True is set in /etc/default/h-tools by default
+    # Copy local.properties file only if the server_type is not defined
+    if config["legacy_structure"]:
+        print "[INFO] The default legacy git repo structure is used to run this script"
+        if config["env_type"]:
+            select_config(config["hybris_path"] + "/config/environments/" + config["env_type"] + ".local.properties",
+                          config["hybris_path"] + "/config" + "/local.properties")
+            select_config(config["hybris_path"] + "/config/environments/" + config["env_type"] + ".localextensions.xml",
+                          config["hybris_path"] + "/config" + "/localextensions.xml")
+
+        if config["tomcat_wrapper"]:
+            select_config(config["hybris_path"] + "/config/tomcat/conf/wrapper-" + config["tomcat_wrapper"] + ".conf",
+                          config["hybris_path"] + "/config/tomcat/conf/wrapper.conf")
+
+        # Deploys platform to bundled server. Will copy files of config/tomcat to config folder of configured bundled server
+        ant_log_out.append(h_ant("deploy", config["username"], config["platform_home"]))
+
+        if config["drop_typesystem"]:
+            ant_log_out.append(h_ant("droptypesystem -DtypeSystemName="+config["drop_typesystem"], config["username"], config["platform_home"]))
+    
+        if config["create_typesystem"]:
+            # create new type system
+            ant_log_out.append(h_ant("createtypesystem -DtypeSystemName="+config["create_typesystem"], config["username"], config["platform_home"]))
+    
+            # write new type system to local.properties
+            with open(config["hybris_path"]+"/config/local.properties", 'r') as fin:
+                data = fin.read().splitlines(True)
+                need_append = True
+                for i,line in enumerate(data):
+                    if "db.type.system.name" in line:
+                        data[i] = "db.type.system.name="+config["create_typesystem"]+"\n"
+                        need_append = False
+                        break
+                if need_append:
+                    data.append("\ndb.type.system.name="+config["create_typesystem"]+"\n")
+            with open(config["hybris_path"]+"/config/local.properties", 'w') as fout:
+                fout.writelines(data)
+    
+        if config["h_init"]:
+            ant_log_out.append(h_ant("initialize", config["username"], config["platform_home"]))
+        if config["h_sysupdate"]:
+            # h_sysupdate value can be bool (True, without config file) or string (path to custom config file)
+            # In case of string value (path to custom config file) we will call ant updatesystem with -DconfigFile param
+            if isinstance(config["h_sysupdate"], bool):
+                ant_log_out.append(h_ant("updatesystem", config["username"], config["platform_home"]))
+            elif isinstance(config["h_sysupdate"], str):
+                ant_log_out.append(h_ant("updatesystem -DconfigFile="+config["h_sysupdate"], config["username"], config["platform_home"]))
+        if config["h_sysupdate_lite"]:
+            val = config["h_sysupdate_lite"].strip()
+            if val:
+                ant_log_out.append(h_ant("updatesystemLite -DconfigFile="+config["h_sysupdate_lite"], config["username"], config["platform_home"]))
+
+    if config["initialization_log_check"]:
+        for elements in ant_log_out:
+            h_logparcer(elements, config["initialization_error_strings"])
+        pass
+    
+    # add check for _EXITCODE = 0 and return this exit code to parent
+    if EXITCODE:
+        sys.exit(EXITCODE)

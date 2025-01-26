@@ -1,0 +1,8 @@
+---
+- import_tasks: remoteagent.yml
+  when: bamboo_agent_remote|bool
+
+- import_tasks: agent.yml
+
+- import_tasks: spot.yml
+  when: bamboo_agent_spot|bool

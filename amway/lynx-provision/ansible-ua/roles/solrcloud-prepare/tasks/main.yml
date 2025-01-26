@@ -1,0 +1,18 @@
+---
+- name: "Solr: update ips in solr.in.sh"
+  replace:
+    path: "{{ solr_insh_default }}"
+    regexp: "{{ ZK_HOSTS }}"
+    replace: "{{ groups.fe1.0 }}:{{ client_port }},{{ groups.fe2.0 }}:{{ client_port }},{{ groups.be1.0 }}:{{ client_port }}"
+  when: env_customization == "ru"
+
+- name: "restart solr"
+  become: True
+  command: "service solr restart"
+  when: env_customization == "ru"
+
+- name: "Solr: uploading config to the zookeepers instance"
+  become: True
+  command: "/bin/bash {{ solr_dest_solr_path }}/bin/solr zk -upconfig -n default -d '{{ solr_base_path }}/data/configsets/default/conf' -z {{ groups.fe1.0 }}:{{ client_port }},{{ groups.fe2.0 }}:{{ client_port }},{{ groups.be1.0 }}:{{ client_port }}"
+  when: env_customization == "ru"
+

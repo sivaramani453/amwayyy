@@ -1,0 +1,48 @@
+---
+- hosts: all
+  vars:
+    system_packages:
+       - "wget"
+       - "unzip"
+       - "vim"
+       - "joe"
+       - "jq"
+       - "git"
+       - "pigz"
+       - "pbzip2"
+       - "NetworkManager"
+       - "python3"
+       - "python3-pip"
+
+    pip_packages:
+       - "awscli"
+
+  tasks:
+    - name: Prepare media instance
+      block:
+       - name: "Disable Selinux"
+         selinux:
+           state: "disabled"
+
+       - name: Perform yum update
+         yum:
+           name: '*'
+           state: latest
+
+       - name: Install epel repo
+         yum:
+           name: epel-release
+           state: present
+
+       - name: Install system packages
+         yum:
+           name: "{{ item }}"
+           state: latest
+         loop: "{{ system_packages }}"
+
+       - name: Install pip packages
+         pip:
+           executable: pip3
+           name: "{{ item }}"
+         loop: "{{ pip_packages }}"
+      become: True

@@ -1,0 +1,10 @@
+proxy_listen_port: 1235
+ts3_proxy:
+    server_name: "api-ts3-proxy.hybris.eia.amway.net"
+    upstream: "https://apigw-ru-ts3.hybris.eia.amway.net/"
+qa_proxy:
+    server_name: "api-qa-proxy.hybris.eia.amway.net"
+    upstream: "https://api-qa.amwayglobal.com/"
+qa3_proxy:
+    server_name: "api-qa3-proxy.hybris.eia.amway.net"
+    upstream: "https://api-qa3.amwayglobal.com/"

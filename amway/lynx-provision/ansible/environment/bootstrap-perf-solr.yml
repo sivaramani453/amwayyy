@@ -1,0 +1,36 @@
+---
+# Apply common configuration
+- hosts: all
+
+  vars:
+# Global variables
+    solr_version: "7.1.0"
+
+# Just to make things easy
+  pre_tasks:
+    - name: "Disable Selinux"
+      become: True
+      selinux:
+        state: "disabled"
+
+  roles:
+   - role: '../roles/lean_delivery.java'
+     transport: "web"
+     transport_web: "https://nexus.hybris.eia.amway.net/repository/static-files/static-dev/jre-8u171-linux-x64.tar.gz"
+
+   - role: '../roles/lean_delivery.zabbix_agent'
+     zabbix_agent_server: "10.130.115.160,zabbix.hybris.eia.amway.net"
+     zabbix_agent_serveractive: "10.130.115.160,zabbix.hybris.eia.amway.net"
+     zabbix_agent_hostname: "{{ ansible_default_ipv4.address }}"
+
+   - role: '../roles/lean_delivery.solr_standalone'
+     solr_java_xms: "2500M"
+     solr_java_xmx: "2500M"
+     solr_ssl_configure: False
+     solr_auth_configure: False
+
+   - role: '../roles/lean_delivery.solr_hybris_config'
+     solr_patch_transport: "web"
+     solr_patch_transport_web: "https://nexus.hybris.eia.amway.net/repository/static-files/static-dev"
+     solr_contrib_hybris_patch_name: "solrCustomizations-7.1.0-contrib.zip"
+     solr_data_hybris_patch_name: "solrCustomizations-7.1.0-data.zip"

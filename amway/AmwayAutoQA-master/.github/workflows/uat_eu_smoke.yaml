@@ -1,0 +1,2901 @@
+name: UAT EU Smoke
+
+on:
+  workflow_dispatch:
+
+# global env set
+env:
+  ECR_REGISTRY: "744058822102.dkr.ecr.eu-central-1.amazonaws.com"
+  DOCKER_CONFIG: "/home/github/.docker"
+  TEST: smoke
+  BROWSER: chrome
+  ENV: ultraserve_uat
+  REPORT_DIR: amway-test-system-ui-tests/target/site/allure-maven-plugin
+
+  # reports related vars
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME}}
+  REPORT_URL: "https://allure-reports.hybris.eu.eia.amway.net"
+
+  # actions related vars
+  ACTIONS_REPO: AmwayCommon/actions
+
+  # Notifications related vars
+  SMTP_SERVER: relay.hybris.eu.eia.amway.net
+  RCPTS: Amway.EU.AQA@Amway.com
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+# parallel jobs (countries)
+jobs:
+  belgium:
+    name: Run tests for Belgium (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: belgium
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri2) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  denmark:
+    name: Run tests for Denmark (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: denmark
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri1) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  finland:
+    name: Run tests for Finland (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: finland
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri1) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  italy:
+    name: Run tests for Italy (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: italy
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri3) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  netherlands:
+    name: Run tests for Netherlands (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: netherlands
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri2) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  norway:
+    name: Run tests for Norway (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: norway
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri1) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  portugal:
+    name: Run tests for Portugal (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: portugal
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri2) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  spain:
+    name: Run tests for Spain (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: spain
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri2) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  sweden:
+    name: Run tests for Sweden (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: sweden
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri1) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  germany:
+    name: Run tests for Germany (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: germany
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri3) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  austria:
+    name: Run tests for Austria (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: austria
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri3) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  switzerland:
+    name: Run tests for Switzerland (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: switzerland
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri3) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  france:
+    name: Run tests for France (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: france
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri3) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  turkey:
+    name: Run tests for Turkey (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: turkey
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  poland:
+    name: Run tests for Poland (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: poland
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  romania:
+    name: Run tests for Romania (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: romania
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  latvia:
+    name: Run tests for Latvia (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: latvia
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+
+  greece:
+    name: Run tests for Greece (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: greece
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  czech_republic:
+    name: Run tests for Czech Republic (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: czech_republic
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+
+  bulgaria:
+    name: Run tests for Bulgaria (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: bulgaria
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  croatia:
+    name: Run tests for Croatia (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: croatia
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  hungary:
+    name: Run tests for Hungary (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: hungary
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  slovakia:
+    name: Run tests for Slovakia (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: slovakia
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  slovenia:
+    name: Run tests for Slovenia (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: slovenia
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  lithuania:
+    name: Run tests for Lithuania (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: lithuania
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  estonia:
+    name: Run tests for Estonia (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: estonia
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  ireland:
+    name: Run tests for Ireland (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: ireland
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  united_kingdom:
+    name: Run tests for United Kingdom (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+
+    env:
+      COUNTRY: united_kingdom
+    outputs:
+      allure_addr: ${{ steps.summary.outputs.url }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY"
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Maven execution
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn clean install -P$TEST -Denv=$ENV \
+                            -Dcountry=$COUNTRY \
+                            -Dbrowser=$BROWSER \
+                            -Dcucumber.filter.tags="@smoke_eu and (@$COUNTRY or @ri4) and not @excluded"
+
+      - name: Generate allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B allure:report
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          if [ -d $REPORT_DIR ]; then
+              echo Going to upload report to s3
+              aws s3 cp --quiet --recursive $REPORT_DIR $S3_FULL_URL
+              echo "ARTIFACT_UPLOADED=yes" >> $GITHUB_ENV
+              echo Report was uploaded
+          else
+              echo Reports dir NOT FOUND
+              echo "ARTIFACT_UPLOADED=no" >> $GITHUB_ENV
+              exit 0
+          fi
+
+      - name: Summary
+        if: ${{ always() }}
+        id: summary
+        shell: bash
+        run: |
+          if [ $ARTIFACT_UPLOADED != 'yes' ]; then
+              echo "Allure report was not uploaded"
+              echo "Please check logs of previous steps"
+          else
+            echo "Allure report is ready --> $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+            echo "::set-output name=url::$REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER/$COUNTRY/"
+          fi
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  summary:
+    name: Show results of the all tests (t3a.small)
+    runs-on: [ self-hosted, t3a.small ]
+    needs: [ belgium,denmark,finland,italy,netherlands,norway,portugal,spain,sweden,germany,austria,switzerland,france,turkey,poland,romania,latvia,greece,czech_republic,bulgaria,croatia,hungary,slovakia,slovenia,lithuania,estonia,ireland,united_kingdom ]
+    if: ${{ always() }}
+
+    steps:
+
+      - name: Print results of all countries
+        shell: bash
+        run: |
+          BELGIUM_OUTPUT=${{ needs.belgium.outputs.allure_addr }}
+          DENMARK_OUTPUT=${{ needs.denmark.outputs.allure_addr }}
+          FINLAND_OUTPUT=${{ needs.finland.outputs.allure_addr }}
+          ITALY_OUTPUT=${{ needs.italy.outputs.allure_addr }}
+          NETHERLANDS_OUTPUT=${{ needs.netherlands.outputs.allure_addr }}
+          NORWAY_OUTPUT=${{ needs.norway.outputs.allure_addr }}
+          PORTUGAL_OUTPUT=${{ needs.portugal.outputs.allure_addr }}
+          SPAIN_OUTPUT=${{ needs.spain.outputs.allure_addr }}
+          SWEDEN_OUTPUT=${{ needs.sweden.outputs.allure_addr }}
+          GERMANY_OUTPUT=${{ needs.germany.outputs.allure_addr }}
+          AUSTRIA_OUTPUT=${{ needs.austria.outputs.allure_addr }}
+          SWITZERLAND_OUTPUT=${{ needs.switzerland.outputs.allure_addr }}
+          FRANCE_OUTPUT=${{ needs.france.outputs.allure_addr }}
+          TURKEY_OUTPUT=${{ needs.turkey.outputs.allure_addr }}
+          POLAND_OUTPUT=${{ needs.poland.outputs.allure_addr }}
+          ROMANIA_OUTPUT=${{ needs.romania.outputs.allure_addr }}
+          LATVIA_OUTPUT=${{ needs.latvia.outputs.allure_addr }}
+          GREECE_OUTPUT=${{ needs.greece.outputs.allure_addr }}
+          CZECH_REPUBLIC_OUTPUT=${{ needs.czech_republic.outputs.allure_addr }}
+          BULGARIA_OUTPUT=${{ needs.bulgaria.outputs.allure_addr }}
+          CROATIA_OUTPUT=${{ needs.croatia.outputs.allure_addr }}
+          HUNGARY_OUTPUT=${{ needs.hungary.outputs.allure_addr }}
+          SLOVAKIA_OUTPUT=${{ needs.slovakia.outputs.allure_addr }}
+          SLOVENIA_OUTPUT=${{ needs.slovenia.outputs.allure_addr }}
+          LITHUANIA_OUTPUT=${{ needs.lithuania.outputs.allure_addr }}
+          ESTONIA_OUTPUT=${{ needs.estonia.outputs.allure_addr }}
+          IRELAND_OUTPUT=${{ needs.ireland.outputs.allure_addr }}
+          UNITED_KINGDOM_OUTPUT=${{ needs.united_kingdom.outputs.allure_addr }}
+
+
+          echo
+          echo "Belgium: $BELGIUM_OUTPUT"
+          echo "Denmark: $DENMARK_OUTPUT"
+          echo "Finland: $FINLAND_OUTPUT"
+          echo "Italy: $ITALY_OUTPUT"
+          echo "Netherlands: $NETHERLANDS_OUTPUT"
+          echo "Norway: $NORWAY_OUTPUT"
+          echo "Portugal: $PORTUGAL_OUTPUT"
+          echo "Spain: $SPAIN_OUTPUT"
+          echo "Sweden: $SWEDEN_OUTPUT"
+          echo "Germany: $GERMANY_OUTPUT"
+          echo "Austria: $AUSTRIA_OUTPUT"
+          echo "Switzerland: $SWITZERLAND_OUTPUT"
+          echo "France: $FRANCE_OUTPUT"
+          echo "Turkey: $TURKEY_OUTPUT"
+          echo "Poland: $POLAND_OUTPUT"
+          echo "Romania: $ROMANIA_OUTPUT"
+          echo "Latvia: $LATVIA_OUTPUT"
+          echo "Greece: $GREECE_OUTPUT"
+          echo "Czech Republic: $CZECH_REPUBLIC_OUTPUT"
+          echo "Bulgaria: $BULGARIA_OUTPUT"
+          echo "Croatia: $CROATIA_OUTPUT"
+          echo "Hungary: $HUNGARY_OUTPUT"
+          echo "Slovakia: $SLOVAKIA_OUTPUT"
+          echo "Slovenia: $SLOVENIA_OUTPUT"
+          echo "Lithuania: $LITHUANIA_OUTPUT"
+          echo "Estonia: $ESTONIA_OUTPUT"
+          echo "Ireland: $IRELAND_OUTPUT"
+          echo "United Kingdom: $UNITED_KINGDOM_OUTPUT"
+
+      - name: Helper step
+        shell: bash
+        run: |
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV  
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Notify after completion (email media)
+        if: ${{ always() }}
+        uses: "./actions/send-email"
+        with:
+          smtp_server: ${{ env.SMTP_SERVER }}
+          rcpts: ${{ env.RCPTS}}
+          subj: "${{ github.workflow }} #${{ github.run_number}} COMPLETED"
+          to: Amway.EU.AQA@Amway.com
+          msg: |
+            <h1> ${{ github.workflow }} ${{ github.run_number}} COMPLETED</h1>
+            <p>Allure Reports:</p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/belgium/'>Belgium</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/denmark/'>Denmark</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/finland/'>Finland</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/italy/'>Italy</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/netherlands/'>Netherlands</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/norway/'>Norway</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/portugal/'>Portugal</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/spain/'>Spain</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/sweden/'>Sweden</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/germany/'>Germany</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/austria/'>Austria</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/switzerland/'>Switzerland</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/france/'>France</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/turkey/'>Turkey</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/poland/'>Poland</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/romania/'>Romania</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/latvia/'>Latvia</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/greece/'>Greece</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/czech_republic/'>Czech_Republic</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/bulgaria/'>Bulgaria</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/croatia/'>Croatia</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/hungary/'>Hungary</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/slovakia/'>Slovakia</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/slovenia/'>Slovenia</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/lithuania/'>Lithuania</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/estonia/'>Estonia</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/ireland/'>Ireland</a></p>
+            <p><a href='${{ env.REPORT_URL }}/${{ env.WORKFLOW_NAME }}/N${{ github.run_number }}/united_kingdom/'>United Kingdom</a></p>
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}

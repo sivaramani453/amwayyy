@@ -1,0 +1,4 @@
+1. Make a name namespace (or remember existing to install solr to)
+2. kubectl apply -f test_solrcloud.yaml -n <namespace>
+3. kubectl get solrclouds
+

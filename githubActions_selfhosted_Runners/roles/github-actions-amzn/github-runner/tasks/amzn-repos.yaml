@@ -1,0 +1,12 @@
+---
+- name: Update and Install required packages
+  block:
+    - name: Perform yum update
+      yum:
+        name: "*"
+        state: "latest"
+
+    - name: Install amazon-linux-extras packages
+      shell: "amazon-linux-extras install {{ item }}"
+      loop: "{{ amazon_packages }}"
+  become: True

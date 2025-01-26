@@ -1,0 +1,6 @@
+template:
+  spec:
+    containers:
+      - name: runner
+        image: 492449516969.dkr.ecr.ap-northeast-1.amazonaws.com/jp-hybris-prd-reconciliation-runner:latest
+        command: ["/home/runner/run.sh"]

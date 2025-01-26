@@ -1,0 +1,45 @@
+{
+  "variables": {
+    "aws_access_key": "",
+    "aws_secret_key": ""
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "eu-central-1",
+	"vpc_id": "vpc-04d64ae6866c7d6d3",
+    "subnet_id": "subnet-0dfcf6324786fd8ff",
+    "source_ami_filter": {
+      "filters": {
+      "virtualization-type": "hvm",
+      "name": "centos7-golden*",
+      "root-device-type": "ebs"
+      },
+      "owners": ["self"],
+      "most_recent": true
+    },
+    "instance_type": "t3.medium",
+    "ssh_username": "centos",
+    "iam_instance_profile": "dev_debug",
+    "ami_name": "media-instance {{ isotime `2006-01-02-03-04` }}",
+    "tags": {
+      "OwnedBy": "Vladimir Antropov",
+      "ApplicationID": "APP1433689",
+      "DataClassification": "Internal",
+      "Environment": "DEV",
+      "Name": "media-instance created by packer"
+    }
+  }],
+  "provisioners": [
+     {
+      "type": "shell",
+      "inline": ["sudo sed -i '$ a ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCwGqeGdpaBUQPVzzOJtiJ1fbmD5wD3sdi4hmTT4VmBsLmG0F1b144LQRKWsZoxYtf6dnf/VS6WldWl5ZQ7EFb9+V60Tg5V4y2ehsfXC19xw3htGkhdywC+Ps5B09EaTeby1g23a7makZ+bhkvuRsEPwOwfHe5e8BHEdnxI7qhMgchRYZEEyFVrHiT64DM7WyfjZnZFHw6S3eP2F91rwJC0EvsXOA/G7EYwP2+dkStsyLtPcBOGvn5SPLSbnuzhsXbGx0aNMxgSCp5dUGCbJ92cJvc5fW/biQPIXAIIYMv4VJHTNJ8DYKmAPZXw8ybjMLbqwA5q7hkEodNPmph5pXHFEAK9X8GWp1zkW9Bt6A72GnJbPIbYgaxeY8hRx7GzHe9JJWRnTs6iL0BgwKiZTi9LOQK31j1ASCDy3JhPlxQacnutpGdlN+kpHJYat0N9ONBvAr4RPDvJ7Cj1CnyMtvsGe2Lz7SntYe124SycuP+w7J9Xfeda7rcKQUxEm8o09uWOTJAoXoKEQAbezQuealfkewZnzTeTvW9oJBccigxjNmvuQ0OUp2FhltF4plQEdkRK6g9wlzMypKehrQoOY+mCT1WJY7tjt6RkairSCEFXbiXOqgRgIfWh86kqWRBIL2mY9y1SZKVCiYcODFhxVEfH5vMnb2vb5I5tJlwd8i08PQ==' /root/.ssh/authorized_keys"]
+    },
+    {
+      "type": "ansible",
+      "playbook_file": "../ansible-eu/media-instance/main.yml"
+    }
+  ]
+}
+

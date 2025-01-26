@@ -1,0 +1,4 @@
+---
+- name: warn on unsupported platform
+  debug:
+    msg: "this role does not support '{{ ansible_os_family }}' platform"

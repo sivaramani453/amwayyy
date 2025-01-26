@@ -1,0 +1,366 @@
+name: EU Short Regression by Country
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: "Environment name"
+        required: true
+        default: ultraserve_fqa
+        options:
+          - ultraserve_fqa
+          - ultraserve_uat
+          - ultraserve_nft
+          - ultraserve_stg
+
+      country:
+        type: choice
+        description: "Country name"
+        required: true
+        default: finland
+        options:
+          - finland
+          - sweden
+          - denmark
+          - norway
+          - spain
+          - portugal
+          - netherlands
+          - belgium
+          - italy
+          - germany
+          - france
+          - switzerland
+          - austria
+          - turkey
+          - poland
+          - greece
+          - romania
+          - croatia
+          - czech_republic
+          - slovenia
+          - slovakia
+          - estonia
+          - latvia
+          - lithuania
+          - bulgaria
+          - hungary
+          - united_kingdom
+          - ireland
+
+      cycle:
+        description: "Optional: Cycle key in JIRA (i.e. 'AMWEIA-C15696')"
+        required: false
+
+env:
+  ECR_REGISTRY: "744058822102.dkr.ecr.eu-central-1.amazonaws.com"
+  DOCKER_CONFIG: "/home/github/.docker"
+  # Static vars
+  BROWSER: chrome
+
+  # User input
+  COUNTRY: ${{ github.event.inputs.country }}
+  ENVIRONMENT: ${{ github.event.inputs.environment }}
+  CYCLE: ${{ github.event.inputs.cycle }}
+  TEST_RUN_ID: ""
+
+  # Reports related vars
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME}}
+  ARTIFACTS_DIR: b2c_ootb/target/allure-results
+  REPORT_DIR: amway-test-system-ui-tests/target/site/allure-maven-plugin
+  REPORT_URL: "https://allure-reports.hybris.eu.eia.amway.net"
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+# Jobs for multiple countries (exec in parallel)
+jobs:
+  job_01:
+    name: Short EU (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+    timeout-minutes: 180
+
+    env:
+      JOB_NUM: 01
+      INCLUDE_TEST: "@short_eu"
+      EXCLUDE_TEST: "(@CancelOrder or @excluded)"
+
+    steps:
+      - name: Print command
+        shell: bash
+        run: |
+          echo "Going to run Short Regress for $COUNTRY"
+
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER"
+
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execute
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          RI1_COUNTRIES=(finland sweden denmark norway)
+          RI2_COUNTRIES=(spain portugal netherlands belgium)
+          RI3_COUNTRIES=(italy germany switzerland austria france)
+          RI4_COUNTRIES=(turkey poland greece romania croatia czech_republic slovenia slovakia estonia latvia lithuania bulgaria hungary united_kingdom ireland)
+
+          # if ri1 group
+          if printf '%s\n' "${RI1_COUNTRIES[@]}" | grep -q -P $COUNTRY; then
+          ROLL_IN="ri1"
+          # elif ri2 group
+          elif printf '%s\n' "${RI2_COUNTRIES[@]}" | grep -q -P $COUNTRY; then
+          ROLL_IN="ri2"
+           # elif ri3 group
+          elif printf '%s\n' "${RI3_COUNTRIES[@]}" | grep -q -P $COUNTRY; then
+          ROLL_IN="ri3"
+           # elif ri4 group
+          elif printf '%s\n' "${RI4_COUNTRIES[@]}" | grep -q -P $COUNTRY; then
+          ROLL_IN="ri4"
+          else
+          echo "Error: country not in the RI list"
+          fi
+          echo "$INCLUDE_TEST $ROLL_IN $COUNTRY"
+          mvn clean install -Dbrowser=$BROWSER \
+                            -Pregression \
+                            -Dcountry=$COUNTRY \
+                            -Denv=$ENVIRONMENT \
+                            -DtestRunId=$TEST_RUN_ID \
+                            -Dcycle=$CYCLE \
+                            -Dcucumber.filter.tags="$INCLUDE_TEST and (@$COUNTRY or @$ROLL_IN) and not $EXCLUDE_TEST"
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          # Try to copy allure report
+          if [ -d $ARTIFACTS_DIR ]; then
+              mkdir -p allure
+              for i in $ARTIFACTS_DIR/*; do cp -rf "$i" allure; done
+          else
+              echo Reports dir NOT FOUND
+              exit 0
+          fi
+
+          # Upload allure report to s3
+          tar -zcf allure_$JOB_NUM.tar.gz allure
+          aws s3 cp  allure_$JOB_NUM.tar.gz  $S3_FULL_URL/allure_$JOB_NUM.tar.gz
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  cancellations:
+    name: Tests with order cancel flow (t3a.xlarge)
+    runs-on: [ self-hosted, t3a.xlarge ]
+    timeout-minutes: 180
+    needs: [ job_01 ]
+    if: ${{ always() }}
+
+    env:
+      JOB_NUM: 02
+      INCLUDE_TEST: "(@short_eu and @CancelOrder)"
+      EXCLUDE_TEST: "@excluded"
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER"
+
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execute
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          RI1_COUNTRIES=(finland sweden denmark norway)
+          RI2_COUNTRIES=(spain portugal netherlands belgium)
+          RI3_COUNTRIES=(italy germany switzerland austria france)
+          RI4_COUNTRIES=(turkey poland greece romania croatia czech_republic slovenia slovakia estonia latvia lithuania bulgaria hungary united_kingdom ireland)
+
+          # if ri1 group
+          if printf '%s\n' "${RI1_COUNTRIES[@]}" | grep -q -P $COUNTRY; then
+          ROLL_IN="ri1"
+          # elif ri2 group
+          elif printf '%s\n' "${RI2_COUNTRIES[@]}" | grep -q -P $COUNTRY; then
+          ROLL_IN="ri2"
+           # elif ri3 group
+          elif printf '%s\n' "${RI3_COUNTRIES[@]}" | grep -q -P $COUNTRY; then
+          ROLL_IN="ri3"
+           # elif ri4 group
+          elif printf '%s\n' "${RI4_COUNTRIES[@]}" | grep -q -P $COUNTRY; then
+          ROLL_IN="ri4"
+          else
+          echo "Error: country not in the RI list"
+          fi
+          echo "$INCLUDE_TEST $ROLL_IN $COUNTRY"
+          mvn clean install -Dbrowser=$BROWSER \
+                            -PsingleThread \
+                            -Dcountry=$COUNTRY \
+                            -Denv=$ENVIRONMENT \
+                            -DtestRunId=$TEST_RUN_ID \
+                            -Dcycle=$CYCLE \
+                            -Dcucumber.filter.tags="$INCLUDE_TEST and (@$COUNTRY or @$ROLL_IN) and not $EXCLUDE_TEST"
+
+      - name: Try to upload allure report
+        if: ${{ always() }}
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          # Try to copy allure report
+          if [ -d $ARTIFACTS_DIR ]; then
+              mkdir -p allure
+              for i in $ARTIFACTS_DIR/*; do cp -rf "$i" allure; done
+          else
+              echo Reports dir NOT FOUND
+              exit 0
+          fi
+
+          # Upload allure report to s3
+          tar -zcf allure_$JOB_NUM.tar.gz allure
+          aws s3 cp  allure_$JOB_NUM.tar.gz  $S3_FULL_URL/allure_$JOB_NUM.tar.gz
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf
+
+  summary:
+    name: Generate results (t3a.medium)
+    runs-on: [ self-hosted, t3a.medium ]
+    timeout-minutes: 180
+    needs: [ job_01, cancellations ]
+    if: ${{ always() }}
+
+    steps:
+      - name: Helper step
+        shell: bash
+        run: |
+          ip_addr=$(ip --brief a | tail -n1 | awk '{print $3}')
+          echo "Agent IP address is: ${ip_addr%/*}"
+
+          CODEBASE="${GITHUB_REPOSITORY##*/}"
+          WORKFLOW_NAME=$(echo ${GITHUB_WORKFLOW,,} | sed -e 's:\s:_:g')
+          S3_FULL_URL="s3://$S3_BUCKET_NAME/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER"
+
+          # Set usefull env vars for next steps
+          echo "CODEBASE=$CODEBASE" >> $GITHUB_ENV
+          echo "WORKFLOW_NAME=$WORKFLOW_NAME" >> $GITHUB_ENV
+          echo "S3_FULL_URL=$S3_FULL_URL" >> $GITHUB_ENV
+
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Checkout ${{ env.ACTIONS_REPO }} repo
+        uses: actions/checkout@v4
+        with:
+          path: actions
+          token: ${{ secrets.GIT_TOKEN }}
+          repository: ${{ env.ACTIONS_REPO }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Download artifacts from the previous steps
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mkdir -p $ARTIFACTS_DIR
+          cd $ARTIFACTS_DIR
+
+          # Copy results for s3 to appropriate dir
+          aws s3 cp --quiet --recursive  $S3_FULL_URL .
+          for file in *.tar.gz; do
+              tar -zxf $file
+          done
+
+          for x in allure/*; do mv -- "$x" .; done
+          rmdir allure
+
+      - name: Generate allure report
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn allure:report
+
+      - name: Upload prepared allure report to s3
+        shell: bash
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          aws s3 cp --recursive "$REPORT_DIR" $S3_FULL_URL
+
+      - name: Print results of scheduled tests
+        shell: bash
+        run: |
+          echo
+          echo "Allure report could be found here: $REPORT_URL/$WORKFLOW_NAME/N$GITHUB_RUN_NUMBER"
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf

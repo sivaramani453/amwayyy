@@ -1,0 +1,12 @@
+[Unit]
+Description=filebeat-pipeline
+Documentation=https://www.elastic.co/guide/en/beats/filebeat/current/index.html
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/bin/bash -c "set -o pipefail; set -e; {{ path.home }}/bin/filebeat -c {{ path.config }}/filebeat-in.yml | /bin/awk -f {{ path.config }}/parsing-pipeline.awk | {{ path.home }}/bin/filebeat -c {{ path.config }}/filebeat-out.yml"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

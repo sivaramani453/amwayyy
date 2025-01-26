@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<configuration>
+<buildWorkingDirectory>/home/bamboo/bamboo-agent-home/xml-data/build-dir</buildWorkingDirectory>
+<agentDefinition>
+<id></id>
+</agentDefinition>
+<agentUuid></agentUuid>
+</configuration>
+

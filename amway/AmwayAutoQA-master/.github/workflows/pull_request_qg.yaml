@@ -1,0 +1,50 @@
+name: QG (mvn compile)
+
+on:
+  pull_request:
+    branches:
+      - master
+    types: [opened, reopened, synchronize]
+
+env:
+  ECR_REGISTRY: "744058822102.dkr.ecr.eu-central-1.amazonaws.com"
+  DOCKER_CONFIG: "/home/github/.docker"
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+jobs:
+  clean_compile:
+    name: Check maven compile clean (t3a.small)
+    runs-on: [ self-hosted, t3a.small ]
+    timeout-minutes: 30
+
+    env:
+      CODEBASE: AmwayAutoQA
+
+    steps:
+      - name: Checkout AmwayAutoQA repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.CODEBASE }}
+
+      - name: Login into the AWS ECR registry
+        shell: bash
+        run: |
+          aws ecr get-login-password --region  eu-central-1   | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+
+      - name: Maven execute cmd
+        shell: bash
+        env:
+          DISPLAY: ":1.0"
+        working-directory: ${{ env.CODEBASE }}
+        run: |
+          mvn -B clean install -DskipTests=true
+
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ env.ECR_REGISTRY }}
+
+      - name: Clean up
+        shell: bash
+        if: ${{ always() }}
+        run: |
+          ls -A | xargs -n 1 rm -rf

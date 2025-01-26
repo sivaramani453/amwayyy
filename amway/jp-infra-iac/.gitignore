@@ -1,0 +1,4 @@
+**/.terraform*
+**/addons.tfvars
+**/terraform.tfstate*
+.idea/*

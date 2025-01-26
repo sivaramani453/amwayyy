@@ -1,0 +1,82 @@
+---
+- name: "Configure Zabbix Server"
+  become: True
+  block:
+    - name: "Copy zabbix server template"
+      template:
+        src: zabbix_server.conf.j2
+        dest: /etc/zabbix/zabbix_server.conf
+        owner: "{{ zabbix_user }}"
+        group: "{{ zabbix_group }}"
+        mode: 0640
+
+    - name: Copy zabbix java gateway template
+      template:
+        src: zabbix_java_gateway.conf.j2
+        dest: /etc/zabbix/zabbix_java_gateway.conf
+        owner: "{{ zabbix_user }}"
+        group: "{{ zabbix_group }}"
+        mode: 0644
+
+    - name: Copy php script to send skype alerts (php Karl)
+      template:
+        src: chatbot.php.j2
+        dest: "{{ zabbix_server_alertscripts_path }}/chatbot.php"
+        owner: "{{ zabbix_user }}"
+        group: "{{ zabbix_group }}"
+        mode: 0744
+
+    - name: Copy python script to get cloudwatch metrics
+      template:
+        src: get_aws.py.j2
+        dest: "{{ zabbix_server_externalsripts_path }}/get_aws.py"
+        owner: "{{ zabbix_user }}"
+        group: "{{ zabbix_group }}"
+        mode: 0744
+
+    - name: "Copy external scripts (aws integration)"
+      copy:
+        src: "{{ item }}"
+        dest: "{{ zabbix_server_externalsripts_path }}/"
+        owner: "{{ zabbix_user }}"
+        group: "{{ zabbix_group }}"
+        mode: "0744"
+      with_fileglob:
+       - files/externalscripts/*
+  tags:
+    - zabbix
+
+
+- name: "Configure Zabbix Agent"
+  become: True
+  block:
+    - name: Create zabbix home dir
+      file:
+        path: "{{ zabbix_home_dir }}"
+        state: directory
+        owner: "{{ zabbix_user }}"
+        group: "{{ zabbix_group }}"
+        mode: '0755'
+
+    - name: Copy .my.cnf template to allow mysql monitoring
+      template:
+        src: my.cnf.j2
+        dest: "{{ zabbix_home_dir }}/.my.cnf"
+        owner: "{{ zabbix_user }}"
+        group: "{{ zabbix_group }}"
+        mode: 0644
+  tags:
+    - zabbix
+
+- name: "Start Zabbix Server and Agent"
+  become: True
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  loop:
+    - zabbix-server
+    - zabbix-agent
+    - zabbix-java-gateway
+  tags:
+    - zabbix

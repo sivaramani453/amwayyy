@@ -1,0 +1,92 @@
+---
+- name: Install epel
+  become: True
+  yum:
+    name:
+      - epel-release
+    state: "present"
+
+- name: Install pip
+  become: True
+  easy_install:
+    name: pip==18.1
+
+- name: Install virtualenv
+  become: True
+  yum:
+    name: "python-virtualenv"
+
+- name: Install pip libs
+  become: True
+  pip:
+    name: "awscli"
+
+- name: Create directory for awscli
+  become: True
+  file:
+    path: "/root/.aws"
+    state: directory
+
+- name: Added awscli conf
+  become: True
+  template:
+    src: "aws/config.j2"
+    dest: "/root/.aws/config"
+
+- name: Added awscli cred
+  become: True
+  template:
+    src: "aws/credentials.j2"
+    dest: "/root/.aws/credentials"
+    mode: '600'
+  when: aws_iam_keys|bool
+
+- name: disable bambooagent
+  become: True
+  systemd:
+    name: bambooagent
+    enabled: False
+    state: stopped
+
+- name: Reset bamboo.cfg
+  become: True
+  template:
+    src: "bamboo/bamboo-agent.cfg.xml.j2"
+    dest: "{{ bamboo_agent_application_folder }}/bamboo-agent.cfg.xml"
+    owner: "{{ bamboo_agent_user }}"
+    group: "{{ bamboo_agent_user }}"
+
+- name: Create directory for scripts
+  become: True
+  file:
+    path: "/opt/scripts"
+    state: "directory"
+
+- name: Create init_bamboo_agent.service
+  become: True
+  template:
+    src: "bamboo/init_bamboo_agent.service.j2"
+    dest: "/etc/systemd/system/init_bamboo_agent.service"
+
+- name: Enable init_bamboo_agent.service
+  become: True
+  systemd:
+    name: init_bamboo_agent.service
+    daemon_reload: True
+    enabled: True
+
+- name: Create init_bamboo_agent.sh
+  become: True
+  template:
+    src: "bamboo/init_bamboo_agent.sh.j2"
+    dest: "/opt/scripts/init_bamboo_agent.sh"
+    mode: '755'
+
+- name: Chown bamboo directory
+  become: True
+  file:
+    dest: "{{ bamboo_agent_application_folder }}"
+    owner: "{{ bamboo_agent_user }}"
+    group: "{{ bamboo_agent_user }}"
+    recurse: True
+

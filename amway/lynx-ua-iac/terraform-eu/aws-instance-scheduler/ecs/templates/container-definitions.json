@@ -1,0 +1,45 @@
+[
+  {
+    "name": "${name}",
+    "cpu": ${cpu},
+    "memoryReservation": ${memory_soft},
+    "memory": ${memory_hard},
+    "image": "${image_name}",
+    "portMappings": [
+      {
+        "containerPort": ${port},
+        "hostPort": ${port}
+      }
+    ],
+    "environment": [
+	    {
+	     "name": "DYDB_TB_USER",
+	     "value": "${env_tb_users}"
+	    },
+	    {
+             "name": "DYDB_TB_GROUPS",
+	     "value": "${env_tb_groups}"
+	    },
+	    {
+             "name": "DYDB_TB_DEFAULT_SCHEDULE",
+	     "value": "${env_tb_default_schedule}"
+	    },
+	    {
+	     "name": "DYDB_TB_CONFIG",
+             "value": "${env_tb_config}" 
+	    },
+	    {
+	     "name": "DYDB_TB_REGION",
+             "value": "${region}" 
+	    }
+    ],
+    "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+            "awslogs-region": "${region}",
+            "awslogs-group": "${log-group}",
+            "awslogs-stream-prefix": "${log-prefix}"
+        }
+    }
+  }
+]

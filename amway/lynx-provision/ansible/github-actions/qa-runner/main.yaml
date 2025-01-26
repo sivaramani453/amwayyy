@@ -1,0 +1,108 @@
+- hosts: all
+  remote_user: centos
+
+  pre_tasks:
+    - name: "Disable Selinux"
+      become: true
+      selinux:
+        state: "disabled"
+
+    - name: Update and install tools
+      include_tasks: prepare.yaml
+
+  roles:
+    - role: "../../roles/github-actions/github-runner"
+      tags:
+        - github
+
+    - role: "../../roles/lean_delivery.docker"
+      tags:
+        - docker
+
+    - role: "../../roles/lean_delivery.java"
+      tags:
+        - java
+
+    - role: "../../roles/gantsign.maven"
+      tags:
+        - java
+
+    - role: "../../roles/shelleg.gradle"
+      become: true
+      tags:
+        - java
+
+    - role: "../../roles/lean_delivery.nodejs"
+      tags:
+        - nodejs
+
+    - role: "../../roles/sonar-scanner"
+      tags:
+        - sonar
+
+    - role: "../../roles/lean_delivery.solr_standalone"
+      tags:
+        - solr
+
+    - role: "../../roles/lean_delivery.solr_hybris_config"
+      tags:
+        - solr
+
+    - role: "../../roles/lean_delivery.mysql"
+      mysql_username: "mysql"
+      mysql_groupname: "mysql"
+      mysql_datadir: "/opt/media/mysql"
+      mysql_version: 5.6
+      mysql_sql_mode: "NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES"
+      mysql_root_password: "{{ db_root_password }}"
+      mysql_bind_address: "127.0.0.1"
+      mysql_max_connections: 400
+      mysql_innodb_buffer_pool_size: "5674M"
+      mysql_innodb_flush_log_at_trx_commit: 0
+      additional_parameters:
+        - name: "character_set_server"
+          value: "utf8"
+        - name: "default_storage_engine"
+          value: "InnoDB"
+      tags:
+        - mysql
+
+    - role : "../../roles/github-actions/pr-agent"
+      tags:
+        - postinstall
+
+  post_tasks:
+    - name: Setup NodeJS
+      become: true
+      become_flags: -i
+      become_user: "{{ runner_user }}"
+      block:
+       - name: Install nvm
+         shell: >
+           curl -o- "{{ nvm_install_script_url }}" | bash
+         args:
+           executable: /bin/bash
+           chdir: "/home/{{ runner_user }}"
+           creates: "/home/{{ runner_user }}/.nvm/nvm.sh"
+
+       - name: Install node
+         shell: |
+           source ~/.bashrc
+           nvm install {{item}}
+         args:
+           executable: /bin/bash
+           chdir: "/home/{{ runner_user }}"
+           creates: "/home/{{ runner_user }}/.nvm/versions/node/v{{item}}"
+         loop: "{{ nvm_node_versions }}"
+      tags:
+        - nvm
+
+    - name: Disable Solr systemd service on agent
+      become: true
+      systemd:
+        name: solr
+        state: stopped
+        daemon_reload: true
+        enabled: no
+      tags:
+        - solr

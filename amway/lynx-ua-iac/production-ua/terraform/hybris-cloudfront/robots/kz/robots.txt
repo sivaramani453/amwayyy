@@ -1,0 +1,62 @@
+# For all robots
+User-agent: *
+
+# Block access to specific groups of pages
+Disallow: */sso/
+Disallow: */singlesignon/
+Disallow: /?
+Disallow: /*icid=
+Disallow: /*cid=
+Disallow: /*aboSponsorCode=
+Disallow: /*crossSellStrategy=
+Disallow: /*refProductCode=
+Disallow: /*forceShowPLP=
+Disallow: /*product_labels=
+Disallow: /404
+Disallow: /en/404
+Disallow: /kk/404
+Disallow: /cart
+Disallow: /en/cart
+Disallow: /kk/cart
+Disallow: /*brand=
+Disallow: /*priceValue=
+Disallow: /*pointValue=
+Disallow: /*paymentModeCode=
+Disallow: /user/
+Disallow: /users/
+Disallow: /calendar/
+Disallow: /*escaped_fragment
+Disallow: /*action=banner.click
+Disallow: /*code=en
+Disallow: /*null
+Disallow: /*sso_logout
+Disallow: /*back_uri
+Disallow: /*categories
+Disallow: /*u=
+Disallow: /*mobile=true
+Disallow: *%20
+Disallow: /*?amp
+Disallow: *login/register/customer/abo/
+Disallow: */online-event
+Allow: */online-event$
+Disallow: /thank-you
+Disallow: /*abosponsorcode
+Disallow: /*action=
+Disallow: /*mobile.redirected=
+Disallow: /checkout/
+Disallow: */my-account/order
+Disallow: /*disableHeader=
+Disallow: /en/calendar/
+Allow: /en/calendar$
+Allow: /calendar$
+Disallow: */*?app=
+Disallow: /en/all-stars/
+Allow: /kk/calendar$
+Disallow: /kk/calendar/
+Disallow: */search
+Disallow: *.pdf
+
+# Insignificant parameters
+Clean-param: crossSellStrategy&refProductCode&searchKeyword&product_labels&forceShowPLP&text&paymentModeCode&cancelredirect&lng&idp&site&isBaseFlow
+
+Sitemap: https://www.kz.amway.com/sitemap.xml

@@ -1,0 +1,61 @@
+{
+	"variables": {
+		"aws_access_key": "",
+		"aws_secret_key": "",
+		"nexus_admin_password": "{{ vault `/amway/data/nexus/admin` `password` }}" 
+	},
+	"builders": [{
+		"type": "amazon-ebs",
+		"access_key": "{{user `aws_access_key`}}",
+		"secret_key": "{{user `aws_secret_key`}}",
+		"region": "eu-central-1",
+		"instance_type": "t3.large",
+		"ssh_username": "centos",
+		"ami_name": "nexus {{ isotime `2006-01-02-03-04` }}",
+		"iam_instance_profile": "dev_debug",
+		"source_ami_filter": {
+			"filters": {
+			"virtualization-type": "hvm",
+			"name": "centos7-golden*",
+			"root-device-type": "ebs"
+			},
+			"owners": ["self"],
+			"most_recent": true
+		},
+		"tags": {
+			"Name": "nexus created by packer",
+			"DataClassification": "Internal",
+			"ApplicationID": "APP1433689",
+			"Environment": "DEV"
+		},
+		"vpc_filter": {
+			"filters": {
+				"tag:Name": "amway-europe-hybris-dev",
+				"isDefault": "false"
+			}
+		},
+		"subnet_filter": {
+			"filters": {
+				"tag:Name": "core-private-a"
+			},
+			"most_free": true
+		}
+	}],
+	"provisioners": [
+		{
+			"type": "shell-local",
+			"inline": "cd ../ansible/nexus && ansible-galaxy install -r requirements.yml -p ../roles/"
+		},
+    		{
+      			"type": "shell",
+      			"inline": ["sudo sed -i '$ a ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCwGqeGdpaBUQPVzzOJtiJ1fbmD5wD3sdi4hmTT4VmBsLmG0F1b144LQRKWsZoxYtf6dnf/VS6WldWl5ZQ7EFb9+V60Tg5V4y2ehsfXC19xw3htGkhdywC+Ps5B09EaTeby1g23a7makZ+bhkvuRsEPwOwfHe5e8BHEdnxI7qhMgchRYZEEyFVrHiT64DM7WyfjZnZFHw6S3eP2F91rwJC0EvsXOA/G7EYwP2+dkStsyLtPcBOGvn5SPLSbnuzhsXbGx0aNMxgSCp5dUGCbJ92cJvc5fW/biQPIXAIIYMv4VJHTNJ8DYKmAPZXw8ybjMLbqwA5q7hkEodNPmph5pXHFEAK9X8GWp1zkW9Bt6A72GnJbPIbYgaxeY8hRx7GzHe9JJWRnTs6iL0BgwKiZTi9LOQK31j1ASCDy3JhPlxQacnutpGdlN+kpHJYat0N9ONBvAr4RPDvJ7Cj1CnyMtvsGe2Lz7SntYe124SycuP+w7J9Xfeda7rcKQUxEm8o09uWOTJAoXoKEQAbezQuealfkewZnzTeTvW9oJBccigxjNmvuQ0OUp2FhltF4plQEdkRK6g9wlzMypKehrQoOY+mCT1WJY7tjt6RkairSCEFXbiXOqgRgIfWh86kqWRBIL2mY9y1SZKVCiYcODFhxVEfH5vMnb2vb5I5tJlwd8i08PQ==' /root/.ssh/authorized_keys"]
+    		},
+		{
+			"type": "ansible",
+			"extra_arguments": [
+				"-v", "--extra-vars", "nexus_admin_password={{ user `nexus_admin_password` }}"
+			],
+			"playbook_file": "../ansible/nexus/nexus.yml"
+		}
+	]
+}

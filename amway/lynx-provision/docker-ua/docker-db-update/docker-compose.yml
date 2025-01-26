@@ -1,0 +1,67 @@
+version: '3.7'
+  
+services:
+  mysql:
+    build: ./app/mysql
+    image: mysql-hybris:5.6
+    container_name: mysql-5.6-hybris
+    ports:
+      - "3306:3306"
+    restart: always
+    volumes:
+       - ./app/mysql/mysql-conf:/etc/mysql/conf.d
+       - mysql5.6-data:/var/lib/mysql
+    networks:
+     - hybris-net
+
+  solr:
+    build: ./app/solr
+    image: solr-hybris:7.1
+    container_name: solr-7.1-hybris
+    restart: always
+    ports:
+     - "8983:8983"
+    volumes:
+     - solr7.1-data:/var/solr/data
+    networks:
+     - hybris-net
+
+  hybris:
+    build: ./app/hybris
+    image: hybris:6.6.0.19
+    container_name: hybris-6.6
+    depends_on:
+     - mysql
+     - solr
+    ports:
+      - "80:80"
+      - "443:443"
+      - "9002:9002"
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - /opt/docker-build/hybris/flags:/opt/hybris/flags
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /tmp/${MK_TMP}:/run 
+      - hybris-media:/opt/media
+      - hybris-logs:/opt/hybris/log     
+    links:
+      - mysql
+      - solr
+    networks:
+     - hybris-net
+
+networks:        
+    hybris-net:
+     driver: bridge
+volumes:
+    mysql5.6-data:
+      external: true
+    solr7.1-data:
+      external: true
+    hybris-media:
+      external: true
+    hybris-logs:
+      external: true

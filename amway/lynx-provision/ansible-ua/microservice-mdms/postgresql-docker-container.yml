@@ -1,0 +1,75 @@
+---
+- name: Configure docker and launch database container
+  block:
+   - name: Install python2-pip
+     package:
+      name: python2-pip
+      state: present
+
+   - name: Install pip libraries
+     pip:
+      name:
+       - docker
+       - pyyaml
+
+   - name: "Login into docker registry {{ docker_registry_name }}"
+     docker_login:
+      registry: "{{ docker_registry_name }}"
+      username: "{{ docker_registry_username }}"
+      password: "{{ docker_registry_password }}"
+
+   - name: Launch PostgreSQL container
+     docker_container:
+      name: "{{ docker_container_name }}"
+      image: "{{ docker_registry_name }}/{{ docker_image_name }}:{{ docker_image_version }}"
+      state: started
+      restart_policy: always
+      privileged: yes
+      volumes:
+       - "{{ pgsql_data_mount_path }}/:/var/lib/postgresql/data:consistent"
+      ports:
+       - "5432:5432"
+      env:
+       POSTGRES_DB: "{{ docker_env_pgsql_database_name }}"
+       POSTGRES_USER: "{{ docker_env_pgsql_username }}"
+       POSTGRES_PASSWORD: "{{ docker_env_pgsql_password }}"
+     register: postgresql_mdms_output
+
+   - name: "Verify that container: {{ docker_container_name }} is running"
+     assert:
+      that:
+       - postgresql_mdms_output.container.State.Status == "running"
+      fail_msg: "Failed to start container: {{ docker_container_name }}"
+      success_msg: "Container {{ docker_container_name }} has been started successfully"
+
+  become: True
+  tags:
+   - docker-container
+
+- name: Generate postgresql.conf
+  block:
+   - name: Update PostgreSQL config
+     template:
+      src: postgresql.conf.j2
+      dest: "{{ pgsql_data_mount_path }}/postgresql.conf"
+      owner: "998"
+      group: "root"
+      mode: "0600"
+     register: pgsql_conf
+
+   - name: Restart PostgreSQL container
+     shell:
+      cmd: docker restart "{{ docker_container_name }}"
+     register: postgresql_mdms_output_restarted
+     when: pgsql_conf.changed
+
+   - name: "Verify that container: {{ docker_container_name }} restarted successfully"
+     assert:
+      that:
+       - postgresql_mdms_output_restarted.rc == 0
+      fail_msg: "Failed to restart container: {{ docker_container_name }}"
+      success_msg: "Container {{ docker_container_name }} has been restarted successfully"
+
+  become: True
+  tags:
+   - postgresql-config

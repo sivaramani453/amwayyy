@@ -1,0 +1,67 @@
+{
+  "variables": {
+    "aws_access_key": "",
+    "aws_secret_key": "",
+    "download_hybris_url": "https://nexus.hybris.eu.eia.amway.net/repository/static-files/hybris/last_6.6.0.29.zip"
+  },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "access_key": "{{user `aws_access_key`}}",
+      "secret_key": "{{user `aws_secret_key`}}",
+      "region": "eu-central-1",
+      "source_ami_filter": {
+        "filters": {
+        "virtualization-type": "hvm",
+        "name": "amzn2-ami-hvm-*-x86_64-gp2*",
+        "root-device-type": "ebs"
+        },
+        "owners": ["amazon"],
+        "most_recent": true
+      },
+      "vpc_id": "vpc-04d64ae6866c7d6d3",
+      "subnet_id": "subnet-0dfcf6324786fd8ff",
+      "iam_instance_profile": "dev_debug",
+      "launch_block_device_mappings": [
+        {
+          "delete_on_termination": true,
+          "device_name": "/dev/xvda",
+          "volume_type": "gp2",
+          "volume_size": 16
+        }
+      ],
+      "instance_type": "t3.large",
+      "ssh_username": "ec2-user",
+      "associate_public_ip_address": false,
+      "ami_name": "dev-debug {{ isotime `2006-01-02-03-04` }}",
+      "tags": {
+        "Name": "dev debug ami created by packer",
+        "OwnedBy": "Vladimir Antropov",
+        "ApplicationID": "APP1433689",
+        "DataClassification": "Internal",
+        "Environment": "DEV" 
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell-local",
+      "inline": "cd ../ansible-eu/dev-debug && ansible-galaxy install -r requirements.yml -p ../roles/"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo sed -i '$ a ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC2tPISkT8O76W0ZoDzZ2vxrAfH7BulmBIfNwDYM5gyLWZx9y+7i7xGbF/i56OFcmgG5zuVuYGbs62+147Kvj+9CEhK0Z13J8IOuZgFwz5ENSjp43ov9wXaxQ3RlkHnKhhF4xQU+OGvF+aoxPIBM7os/lWP0szNbPT/4WteZTIONBgg4LA02V0m401g72Rg04IlJc8H8YrgvZPnZDuf7KDklY47Z/9Uq2h+qp0tb6L8psoBOClkU4/se1FWgnXocj3FcxnfAmlI1p5d4D8zXIHJn1K3CQFsDmLN5NmtcOy44foQ55IM4K6/m/yCB4IBh7tFeIaWkcUb+qmSf1U0tv7V' /root/.ssh/authorized_keys",
+        "sudo sed -i '$ a ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDzlsJbR8ps2/YEJV6orAWJwWUp3oBFP2mhM8ORfmMT9kX4xxpvM3FmdXcwVzUVDMzq7bvULuEzq+03p8AIG7kCPJ1lZH0JYNuLN73SEraornno0rBZv/U8n3Sj+sQEiQBtR/+LGUwqduA5MIHCJwg/yxMEotS3SywZtfz+zymS/gWr5TBtGLH9R2zioOo2DBcV5axZGWby1wQH6eFaiqWkRDzHJLa5cM8VkfjhPsPSCnqh4Z+iQNW8pKiKgSrYW4B9qRybNyGoP754bquyLbSM3YJcI0IiecmXsQhRNmMBCdZ8VoE01xsnzt6Mpl67ZqF8gyxNS69pfDDq0oJWKlqj+nsMSFsMHSflr1NKKGSe8qqLdiFMUY7RUMO5ybnOitehU4KwYd00m/nIxhsxyaPksdhy3fil60eIrFbGOAAXxs9fcbF3BrIT2I663yL6mD/ysaWekdItzOXZmLj6+E0I7D9SB4ZM52OSi/YNcEzIn6tm2ob6lkWyaacsM5y7Ilq8BosC5kEEMbhiqsHfW6N7hANAug2tVuDOfuyyiG9J0EJbuTlyknCD6eOb1dw9s5eGAHN01ZzrUeaOUERbE7xDXv6FKWoNSgfPLsFPoVh0MsQseoSSlSqMZr6JBeFsYC//fgGgV9PSeOEyHvkM4D4/MXeiwEGfx+fNhyObezHe5Q== vladimir@icevortex' /home/ec2-user/.ssh/authorized_keys; sudo chown ec2-user /home/ec2-user/.ssh/authorized_keys; sudo chmod 600 /home/ec2-user/.ssh/authorized_keys",
+        "sudo yum -y install python2-pip python3"
+      ]
+    },
+    {
+      "type": "ansible",
+      "extra_arguments": [
+        "-v", "--extra-vars", "download_hybris_url={{user `download_hybris_url`}}"
+      ],
+      "playbook_file": "../ansible-eu/dev-debug/bootstrap.yml"
+    }
+  ]
+}

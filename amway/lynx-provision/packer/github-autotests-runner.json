@@ -1,0 +1,47 @@
+{
+  "variables": {
+    "aws_region": "eu-central-1",
+    "aws_vpc": "vpc-1fbfbe76",
+    "aws_subnet": "subnet-5993d314",
+    "github_token": "{{ vault `/kv/data/github/amway/git_admin_user_4_enterprise` `token_repo_scope` }}",
+    "is_public": "false"
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "{{user `aws_region`}}",
+    "vpc_id": "{{user `aws_vpc`}}",
+    "subnet_id": "{{user `aws_subnet`}}",
+    "source_ami_filter": {
+      "filters": {
+      "virtualization-type": "hvm",
+      "name": "centos8-golden*",
+      "root-device-type": "ebs"
+      },
+      "owners": ["self"],
+      "most_recent": true
+    },
+    "instance_type": "t3.large",
+    "ssh_username": "centos",
+    "associate_public_ip_address": "{{user `is_public`}}",
+    "ami_name": "ga-runner-auto {{ isotime `2006-01-02-03-04` }}",
+    "tags": {
+      "Name": "GitHub self-hosted runner for iac repos",
+      "OwnedBy": "George Kakovkin"
+    }
+  }],
+  "provisioners": [
+    {
+      "type": "shell-local",
+      "inline": "cd ../ansible/github-actions/autotests-runner && ansible-galaxy install -r requirements.yaml -p ../../roles/ -f"
+    },
+    {
+      "type": "ansible",
+      "extra_arguments": [
+        "-v", "--extra-vars", "github_token={{ user `github_token` }}"
+      ],
+      "playbook_file": "../ansible/github-actions/autotests-runner/main.yaml"
+    }
+  ]
+}

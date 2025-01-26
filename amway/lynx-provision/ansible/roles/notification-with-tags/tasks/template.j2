@@ -1,0 +1,43 @@
+{
+    "type":"message",
+    "attachments":[
+       {
+          "contentType":"application/vnd.microsoft.card.adaptive",
+          "content":{
+             "$schema":"http://adaptivecards.io/schemas/adaptive-card.json",
+             "type":"AdaptiveCard",
+             "version":"1.2",
+             "msteams": {
+                "width": "Full",
+                "type": "messageBack",
+                "entities": [
+{% for user in teams_usernames %}
+                  {
+                    "type": "mention",
+                    "text": "<at>{{ user.name }}</at>",
+                    "mentioned": {
+                      "id": "{{ user.email }}",
+                      "name": "{{ user.name }}"
+                    }
+                  },
+{% endfor %}
+                ]
+              },
+             "body": [
+                {
+                  "type": "TextBlock",
+                  "width": "Full",
+                  "text": "Hi{% for user in teams_usernames %}, <at>{{ user.name }}</at>{% endfor %}",
+                  "weight": "bolder"
+                },
+                {
+                  "type": "TextBlock",
+                  "width": "Full",
+                  "text": "{{ notification_message }}",
+                  "wrap": true
+                }
+              ]
+          }
+       }
+    ]
+}

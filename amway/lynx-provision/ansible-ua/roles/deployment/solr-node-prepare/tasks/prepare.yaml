@@ -1,0 +1,138 @@
+---
+- name: Copy solr config files
+  become: True
+  block:
+    - name: Delete before copy otherwise i dont know how to get this stupid module work
+      file:
+        path: "/var/solr/data/configsets/{{ item }}"
+        state: absent
+      loop: "{{ solr_config_files }}"
+      when: ( item | length ) > 0
+    
+    - name: Copy configsets
+      copy:
+        force: yes
+        remote_src: yes
+        src: "/root/solrconfig/hybris/config/solr_assets/configsets/{{ item }}"
+        dest: "/var/solr/data/configsets/{{ item }}"
+      loop: "{{ solr_config_files }}"
+      when: ( item | length ) > 0
+    
+    - name: Delete src path
+      file:
+        path: /root/solrconfig
+        state: absent
+  rescue:
+    - name: Notify about failure
+      include_tasks: notify.yaml
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Could not copy solr configsets."
+
+    - name: Now fail real
+      fail:
+        msg: "Could not copy solr configsets."
+
+- name: Prepare solr configsets
+  become: True
+  block:
+    - name: delete default solrconfig
+      file:
+        path: /var/solr/data/configsets/default/conf/solrconfig.xml
+        state: absent
+    - name: Copy  slave conf file
+      copy:
+        force: yes
+        remote_src: yes
+        src: /var/solr/data/configsets/default/conf/solrconfig-slave.xml
+        dest: /var/solr/data/configsets/default/conf/solrconfig.xml
+    - name: Remove previously copied file
+      file:
+        path: /var/solr/data/configsets/default/conf/solrconfig-slave.xml
+        state: absent
+    - name: Replace master ip address and port
+      replace:
+        path: /var/solr/data/configsets/default/conf/solrconfig.xml
+        regexp: "your-master-hostname:port"
+        replace: "{{ solr_master_ip_address }}:{{ solr_master_port }}"
+    - name: Replace master ip address and port v2
+      replace:
+        path: /var/solr/data/configsets/default/conf/solrconfig.xml
+        regexp: "10.1.2.60:8983"
+        replace: "{{ solr_master_ip_address }}:{{ solr_master_port }}"
+  rescue:
+    - name: Notify about failure
+      include_tasks: notify.yaml
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Could not prepare solr configsets."
+
+    - name: Now fail real
+      fail:
+        msg: "Could not prepare solr configsets."
+  when: inventory_hostname in groups['solr_slaves']
+
+- name: Check if solrconfig-slave exists
+  become: True
+  stat:
+    path: /var/solr/data/configsets/backoffice/conf/solrconfig-slave.xml
+  register: stat_result
+
+
+- name: Prepare solr configsets one more time
+  become: True
+  block:
+    - name: Remove backoffice solr config file
+      file:
+        path: /var/solr/data/configsets/backoffice/conf/solrconfig.xml
+        state: absent
+    - name: Copy slave backoffice config file
+      copy:
+        force: yes
+        remote_src: yes
+        src: /var/solr/data/configsets/backoffice/conf/solrconfig-slave.xml
+        dest: /var/solr/data/configsets/backoffice/conf/solrconfig.xml
+    - name: Remove previously copied file
+      file:
+        path: /var/solr/data/configsets/backoffice/conf/solrconfig-slave.xml
+        state: absent
+    - name: Replace master ip address and port
+      replace:
+        path: /var/solr/data/configsets/backoffice/conf/solrconfig.xml
+        regexp: "your-master-hostname:port"
+        replace: "{{ solr_master_ip_address }}:{{ solr_master_port }}"
+    - name: Replace master ip address and port v2
+      replace:
+        path: /var/solr/data/configsets/backoffice/conf/solrconfig.xml
+        regexp: "10.1.2.60:8983"
+        replace: "{{ solr_master_ip_address }}:{{ solr_master_port }}"
+  rescue:
+    - name: Notify about failure
+      include_tasks: notify.yaml
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Could not prepare solr configsets."
+
+    - name: Now fail real
+      fail:
+        msg: "Could not prepare solr configsets."
+  when:
+    - inventory_hostname in groups['solr_slaves']
+    - stat_result.stat.exists
+
+
+- name: Restart solr services
+  become: True
+  block:
+    - name: Restart Solr service
+      become: True
+      service:
+        name: solr
+        state: restarted
+        use: service
+  rescue:
+    - name: Notify about failure
+      include_tasks: notify.yaml
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Could not restart  solr services."
+
+    - name: Now fail real
+      fail:
+        msg: "Could not restart  solr services."

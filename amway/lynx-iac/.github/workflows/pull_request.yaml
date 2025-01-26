@@ -1,0 +1,167 @@
+# This is a basic workflow to help you get started with Actions
+name: Verify Pull Request
+
+on:
+  pull_request:
+    branches:
+      - master
+    types: [opened, reopened, synchronize]
+
+env:
+  WORKDIR: CODEBASE
+  NUM: ${{ github.event.pull_request.number }}
+  REF: ${{ github.event.pull_request.head.ref }}
+  BASE_REF: ${{ github.event.pull_request.base.ref }}
+  CODE_REPO: ${{ github.repository}}
+
+jobs:
+  creds-check:
+    name: Check for the committed credentials (t3a.micro)
+    runs-on: [self-hosted, t3a.micro]
+
+    steps:
+    - name: Checkout repo ${{ env.CODE_REPO }}
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ env.REF }}
+        path: ${{ env.WORKDIR }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        repository: ${{ env.CODE_REPO }}
+
+    - name: Creads check
+      shell: bash
+      working-directory: ${{ env.WORKDIR }} 
+      run: |
+        OS_NAME=$(uname | awk '{print tolower($1)}')
+        curl -o ../cred-alert-cli https://s3.amazonaws.com/cred-alert/cli/current-release/cred-alert-cli_${OS_NAME}
+        chmod 755 ../cred-alert-cli
+        # I don't know what to do with this file right now
+        # However i want to run this step
+        rm -rf terraform/selenoid-consul/ssh_key/consul-server
+        ../cred-alert-cli scan -f .
+
+    - name: Clean up
+      if: ${{ always() }}
+      run: |
+        rm -vrf *
+        rm -f ../cred-alert-cli
+
+  terraform-lint:
+    name: Run terraform lint (t3a.micro)
+    runs-on: [self-hosted, t3a.micro]
+
+    steps:
+    - name: Checkout repo ${{ env.CODE_REPO }}
+      shell: bash
+      env:
+        GIT_USER: EUJJZU8
+      run: |
+        git clone -b "${{ env.REF }}" \
+            "https://$GIT_USER:${{ secrets.GIT_TOKEN }}@github.com/${{ env.CODE_REPO }}" "${{ env.WORKDIR }}"
+        cd "${{ env.WORKDIR }}" && git fetch origin "${{ env.BASE_REF }}"
+
+    - name: Terraform lint
+      shell: bash
+      working-directory: ${{ env.WORKDIR }}
+      run: |
+        .github/workflows/pull_request/terraform_lint.sh
+
+    - name: Clean up
+      if: ${{ always() }}
+      run: |
+        rm -vrf *
+
+  sonar-check:
+    name: Run Sonar Scaner (t3a.micro)
+    runs-on: [self-hosted, t3a.micro]
+
+    steps:
+    - name: Checkout repo ${{ env.CODE_REPO }}
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ env.REF }}
+        path: ${{ env.WORKDIR }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        repository: ${{ env.CODE_REPO }}
+
+    - name: Sonar check
+      shell: bash
+      env:
+        SONAR_URL: "https://sonarqube-ent-eu.security.corp.amway.net"
+        SONAR_USER: "EPAMSecurityUser"
+        SONAR_PROJECT: "eia-lynx-iac"
+      working-directory: ${{ env.WORKDIR }}    
+      run: |
+        export PATH=/opt/sonarscanner/bin:$PATH
+        sonar-scanner \
+          -Dsonar.projectKey=$SONAR_PROJECT \
+          -Dsonar.sources=. \
+          -Dsonar.pullrequest.key="${{ env.NUM }}" \
+          -Dsonar.pullrequest.branch="${{ env.REF }}" \
+          -Dsonar.pullrequest.base="${{ env.BASE_REF }}" \
+          -Dsonar.host.url=$SONAR_URL \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+        # Just a quick fix to wait for sonar to analize PR
+        # Need to be refactored later
+        sleep 60
+
+    - name: Check QG status
+      shell: python
+      env:
+        SONAR_URL: "https://sonarqube-ent-eu.security.corp.amway.net/api/qualitygates/project_status"
+        SONAR_PR_URL: "https://sonarqube-ent-eu.security.corp.amway.net/dashboard?id=eia-lynx-iac&pullRequest=${{ env.NUM }}"
+        SONAR_USER: "EPAMSecurityUser"
+        SONAR_PROJECT: "eia-lynx-iac"
+      run: |
+        import os
+        import time
+        import requests
+
+        # Const
+        pr = os.environ.get("NUM")
+        url = os.environ.get("SONAR_URL")
+        user = os.environ.get("SONAR_USER")
+        secret = "${{ secrets.SONAR_PASSWORD }}"
+
+        auth = (user, secret)
+        params = {"projectKey": "eia-lynx-iac", "pullRequest": pr}
+
+        class TimeoutError(Exception):
+            pass
+
+        # repeat requets multiple times
+        def repeat(times):
+            def inner(func):
+                def wrapper(*args, **kwargs):
+                    for i in range(times):
+                        resp = func(*args, **kwargs)
+                        if resp.status_code == 200:
+                            return resp
+                        elif resp.status_code != 404:
+                            raise RuntimeError("Could not get valid response from sonar server. Status code is {0}".format(resp.status_code))
+                        print("Could not get qd status from #{0} attempt".format(i+1))
+                        time.sleep(10)
+                    raise TimeoutError("Function {0} did not succeed via {1} attempts".format(func.__name__, times))
+                return wrapper
+            return inner
+
+        @repeat(30)
+        def get_qg_status(url, auth, params):
+            resp = requests.get(url, auth=auth, params=params)
+            return resp
+
+
+        resp = get_qg_status(url, auth, params)
+
+        resp_json = resp.json()
+        if resp_json.get("projectStatus", {}).get("status") != "OK":
+                sonar_link = os.environ.get('SONAR_PR_URL')
+                raise RuntimeError("PR status is not OK, please check sonar: " + sonar_link )
+
+        print("OK")
+
+    - name: Clean up
+      if: ${{ always() }}
+      run: |
+        rm -vrf *
+

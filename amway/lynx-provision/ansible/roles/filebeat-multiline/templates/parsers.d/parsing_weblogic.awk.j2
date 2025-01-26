@@ -1,0 +1,117 @@
+# This block is present only for debugging and testing puposes
+# Do not leave it uncommented while running in pipeline!
+#=============================================================
+# BEGIN{
+# 	sourcelog = "weblogic_source.log"
+# 	logtype[sourcelog] = "weblogic"
+# 	index_name[sourcelog] = "atg_weblogic"
+# }
+# {
+#     parsing_weblogic(sourcelog)
+# }
+# END{}
+#=============================================================
+function parsing_weblogic(sourcelog)
+{
+	clear_special_symbols()
+	if ($1~/^<(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/ && $2~/[[:digit:]]+,/)
+	{
+		if (sourcelog in message) 
+			out_multiline(sourcelog)
+		n=split($0,c,/<|>|> </)
+		ts = conv_date(c[2])
+		msg = c[6]
+		if (c[4]=="NodeManager") msg=c[5]
+		setvalues(ts,c[3],c[4],c[n],sourcelog)
+		flag[sourcelog]=0
+		next
+	}
+	if ($1~/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/ && $2~/[[:digit:]]+,/) 	
+	{ 
+		if (sourcelog in message)
+			out_multiline(sourcelog)
+		flag[sourcelog]=1
+		timestamp[sourcelog]=conv_date($1" "$2" "$3" "$4" "$5)
+		component[sourcelog]=$6" "$7
+		next
+	}
+	if (flag[sourcelog]==1) 
+	{ 
+		ind=index($0,":")
+		severity[sourcelog]=toupper(substr($0,1,ind - 1))
+		message[sourcelog]=substr($0,ind + 2)
+		flag[sourcelog]=0
+		next
+	}
+	if ($1=="****") 
+	{
+		flag[sourcelog]=0
+		u=substr($9,1,10)
+		v=substr($9,11,3)
+		sd = strftime("%a %b %d %H:%M:%S GMT %Y",u,1)
+			td = $3" "$4" "$5" "$6" "$7" "$8
+			if (sd!=td)
+					next
+		str=$11
+		for (i=12;i<=NF;++i)
+			str=str" "$i
+		if ($11!~/^at|Caused/) 
+		{
+			if (sourcelog in message)
+						out_multiline(sourcelog)
+			ts=strftime("%Y-%m-%dT%H:%M:%S",u,1)"."v"Z"
+			setvalues(ts,$2,$10,str,sourcelog)
+		} else 	{ 
+				message[sourcelog]=message[sourcelog] "\\n" str
+			}
+		next
+	}
+  	gsub(/\t/,"\\\\t")
+  	if (sourcelog in message)
+  		message[sourcelog]=message[sourcelog] "\\n" $0
+}
+
+function weblogic_fields(sourcelog)
+{
+    weblogic_field["@timestamp"] = timestamp[sourcelog]
+    weblogic_field["type_name"] = severity[sourcelog]
+	weblogic_field["component_name"] = component[sourcelog]
+    weblogic_field["sourcelog"] = sourcelog
+    weblogic_field["message"] = message[sourcelog]
+    weblogic_field["logtype"] = logtype[sourcelog]
+    weblogic_field["index"] = index_name[sourcelog]
+    print out_json(weblogic_field)
+}
+function weblogic_clean(sourcelog)
+{
+    for (i in weblogic_field)
+        delete weblogic_field[i]
+    delete timestamp[sourcelog]
+    delete severity[sourcelog]
+    delete message[sourcelog]
+    delete logtype[sourcelog]
+	delete index_name[sourcelog]
+}
+function setvalues(aa,bb,cc,dd,ss) # put values into buffer variables (timestamp, severity, component, message); each variable is array; array index is sourcelog
+{
+	timestamp[ss]=aa
+	severity[ss]=toupper(bb)
+	component[ss]=cc
+	message[ss]=dd
+}
+function conv_date(ts) # convert date from log message text format to format compatible with Elastic (ISO8601)
+{
+	split(ts,a,"[,: ]")
+	match("JanFebMarAprMayJunJulAugSepOctNovDec",a[1])
+	a[1] = sprintf("%02d",(RSTART+2)/3)
+	if (a[8]=="AM" && a[5]==12) a[5] = "00"
+	if (a[8]=="PM" && a[5]!=12) a[5] += 12
+	a[5] = sprintf("%02d",a[5])
+	secs = mktime(a[4]" "a[1]" "a[2]" "a[5]" "a[6]" "a[7])
+	return strftime("%Y-%m-%dT%H:%M:%S", secs)".000Z"
+}
+
+@include "{{ path.config }}/awk.d/convert_time.awk"
+@include "{{ path.config }}/awk.d/clear_special_symbols.awk"
+@include "{{ path.config }}/awk.d/out_json.awk"
+@include "{{ path.config }}/awk.d/out_multiline.awk"

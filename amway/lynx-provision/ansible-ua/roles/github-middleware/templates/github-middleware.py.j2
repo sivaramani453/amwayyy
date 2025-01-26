@@ -1,0 +1,297 @@
+#!/usr/bin/env python
+"""
+Very simple HTTP server in python.
+Usage::
+    ./dummy-web-server.py [<port>]
+Send a GET request::
+    curl http://localhost
+Send a HEAD request::
+    curl -I http://localhost
+Send a POST request::
+    curl -d "foo=bar&bin=baz" http://localhost
+"""
+from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+import json
+import requests
+
+
+class S(BaseHTTPRequestHandler):
+    def _set_headers(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+
+    def do_GET(self):
+        self._set_headers()
+        self.wfile.write("<html><body><h1>hi!</h1></body></html>")
+
+    def do_HEAD(self):
+        self._set_headers()
+
+    def do_POST(self):
+        content_length = int(self.headers['Content-Length'])  # <--- Gets the size of data
+        post_data = self.rfile.read(content_length)  # <--- Gets the data itself
+        # work with post_data
+        resp_dict = json.loads(post_data)
+        if ('pull_request' in resp_dict) and (resp_dict['action'] in ["synchronize", "opened", "reopened"]):
+            print "Action: ", resp_dict['action']
+            print "pull request number", str(resp_dict['pull_request']['number'])
+            print "pull request ref", resp_dict['pull_request']['head']['ref']
+            print "pull request sha", resp_dict['pull_request']['head']['sha']
+            print "sender ", resp_dict['sender']['login']
+            print "Poke a bamboo "
+            response = "Posted to Bamboo "+resp_dict['action']+" "+resp_dict['pull_request']['head']['ref']+" "\
+                       + str(resp_dict['pull_request']['number'])
+            do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                           pull_sha=(resp_dict['pull_request']['head']['sha']),
+                           pull_ref=(resp_dict['pull_request']['head']['ref']),
+                           pull_event=(resp_dict['action']),
+                           sender_login=(resp_dict['sender']['login']),
+                           pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                           repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+        elif ('pull_request' in resp_dict) and (resp_dict['action'] == 'labeled'):
+            init_label = False
+            init_lite_label = False
+            build_label = False
+            sonar_label = False
+            spring_label = False
+            integration_label = False
+            ui_unit_label = False
+            unit_web_label = False
+            update_label = False
+            int_lite_label = False
+            restart_label = False
+            # all_checks_label = False
+            if resp_dict['label']['name'] == 'run init test':
+                init_label = True
+            elif resp_dict['label']['name'] == 'run init-lite test':
+                init_lite_label = True
+            elif resp_dict['label']['name'] == 'run build test':
+                build_label = True
+            elif resp_dict['label']['name'] == 'run sonar test':
+                sonar_label = True
+            elif resp_dict['label']['name'] == 'run spring test':
+                spring_label = True
+            elif resp_dict['label']['name'] == 'run integration test':
+                integration_label = True
+            elif resp_dict['label']['name'] == 'run ui unit test':
+                ui_unit_label = True
+            elif resp_dict['label']['name'] == 'run unit + web test':
+                unit_web_label = True
+            elif resp_dict['label']['name'] == 'run update test':
+                update_label = True
+            elif resp_dict['label']['name'] == 'run integration-lite test':
+                int_lite_label = True
+            elif (resp_dict['label']['name'] == 'RESTARTED') and (resp_dict['sender']['login'] in ["2km97a4m", "4uJRWpSc"]):
+                restart_label = True
+            # elif resp_dict['label']['name'] == 'enable all checks':
+            #     all_checks_label = True
+            if init_label:
+                print "run init test label is detected"
+                response = "Bamboo is triggered for label run init test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='init_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif init_lite_label:
+                print "run init-lite test label is detected"
+                response = "Bamboo is triggered for label run init-lite test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='init_lite_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif build_label:
+                print "run build test label is detected"
+                response = "Bamboo is triggered for label run build test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='build_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif sonar_label:
+                print "run sonar test label is detected"
+                response = "Bamboo is triggered for label run sonar test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='sonar_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif spring_label:
+                print "run spring test label is detected"
+                response = "Bamboo is triggered for label run spring test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='spring_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif integration_label:
+                print "run integration test label is detected"
+                response = "Bamboo is triggered for label run integration test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='integration_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif ui_unit_label:
+                print "run ui unit test label is detected"
+                response = "Bamboo is triggered for label run ui unit test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='ui_unit_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif unit_web_label:
+                print "run unit + web test label is detected"
+                response = "Bamboo is triggered for label run unit + web test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='unit_web_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif update_label:
+                print "run update test label is detected"
+                response = "Bamboo is triggered for label run update test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='update_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif int_lite_label:
+                print "run integration lite test label is detected"
+                response = "Bamboo is triggered for label run integration lite test"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='int_lite_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            elif restart_label:
+                print "RESTARTED label is detected"
+                response = "Bamboo is triggered for label RESTARTED"
+                do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+                               pull_sha=(resp_dict['pull_request']['head']['sha']),
+                               pull_ref=(resp_dict['pull_request']['head']['ref']),
+                               pull_event=(resp_dict['action']),
+                               sender_login=(resp_dict['sender']['login']),
+                               pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+                               label='restart_label',
+                               repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            # elif all_checks_label:
+            #     print "enable all checks label is detected"
+            #     response = "Bamboo is triggered for label enable all checks"
+            #     do_poke_bamboo(pull_num=str(resp_dict['pull_request']['number']),
+            #                    pull_sha=(resp_dict['pull_request']['head']['sha']),
+            #                    pull_ref=(resp_dict['pull_request']['head']['ref']),
+            #                    pull_event=(resp_dict['action']),
+            #                    sender_login=(resp_dict['sender']['login']),
+            #                    pull_base_ref=(resp_dict['pull_request']['base']['ref']),
+            #                    label='all_checks_label',
+            #                    repo_name=resp_dict['pull_request']['head']['repo']['full_name'])
+            else:
+                print "label for trigger tests is not detected"
+                response = "Bamboo is not triggered for labeled event"
+        else:
+            print "it not a pull request"
+            response = "Bamboo is not triggered for "+resp_dict['action']+" "+resp_dict['pull_request']['head']['ref']\
+                       + " " + str(resp_dict['pull_request']['number'])
+        self._set_headers()
+        self.wfile.write(response)
+
+
+def do_poke_bamboo(username="builduser", password="Qwe54321",
+                   url="https://amway-prod.tt.com.pl/bamboo/rest/api/latest/queue/", plan="-RT", pull_num="0",
+                   pull_sha="0", pull_ref="dummy", pull_event="dummy", sender_login="dummy", pull_base_ref="dummy",
+                   label="null", repo_name=""):
+    if repo_name == "AmwayEIA/lynx":
+        project = 'AM'
+    elif repo_name == "AmwayEIA/lynx-ru":
+        project = 'AER'
+    elif repo_name == "AmwayEIA/lynx-in":
+        project = 'AEI'
+    else:
+        print "Project with repo {} was not found".format(repo_name)
+        return
+
+    plan = project + plan
+
+    if (sender_login in ["2km97a4m", "4uJRWpSc"]) and not pull_ref.startswith("ui/") and (label == "restart_label" or label == "null"):
+        plan = "{}-RTWM".format(project)
+    if (sender_login in ["2km97a4m", "4uJRWpSc"]) and pull_ref.startswith("ui/") and (label == "restart_label" or label == "null"):
+        plan = "{}-RTWMU".format(project)
+    if (sender_login not in ["2km97a4m", "4uJRWpSc"]) and pull_ref.startswith("ui/"):
+        plan = "{}-RTU".format(project)
+    if (pull_event == "labeled" and label == "init_label"):
+        plan = "{}-RTIO".format(project)
+    if (pull_event == "labeled" and label == "init_lite_label"):
+        plan = "{}-RTILTO".format(project)
+    if (pull_event == "labeled" and label == "build_label"):
+        plan = "{}-RTBTO".format(project)
+    if (pull_event == "labeled" and label == "sonar_label"):
+        plan = "{}-RTSTO".format(project)
+    if (pull_event == "labeled" and label == "spring_label"):
+        plan = "{}-RTSCTO".format(project)
+    if (pull_event == "labeled" and label == "integration_label"):
+        plan = "{}-RTITO".format(project)
+    if (pull_event == "labeled" and label == "ui_unit_label"):
+        plan = "{}-RTUUTO".format(project)
+    if (pull_event == "labeled" and label == "unit_web_label"):
+        plan = "{}-RTUWTO".format(project)
+    if (pull_event == "labeled" and label == "update_label"):
+        plan = "{}-RTUTO".format(project)
+    if (pull_event == "labeled" and label == "int_lite_label"):
+        plan = "{}-RTILO".format(project)
+    r = requests.post(
+        url + plan + "?bamboo.variable.pull_ref=" + pull_ref + "&bamboo.variable.pull_sha=" + pull_sha +
+        "&bamboo.variable.pull_num=" + pull_num + "&bamboo.variable.pull_event=" + pull_event +
+        "&bamboo.variable.sender_login=" + sender_login + "&bamboo.variable.pull_base_ref=" + pull_base_ref +
+        "&bamboo.variable.label=" + label,
+        verify=False, auth=(username, password))
+    print r
+    print (r.text)
+
+
+def run(server_class=HTTPServer, handler_class=S, port={{ service_port }}):
+    server_address = ('127.0.0.1', port)
+    httpd = server_class(server_address, handler_class)
+    print 'Starting httpd...'
+    httpd.serve_forever()
+
+
+if __name__ == "__main__":
+    from sys import argv
+
+    if len(argv) == 2:
+        run(port=int(argv[1]))
+    else:
+        run()

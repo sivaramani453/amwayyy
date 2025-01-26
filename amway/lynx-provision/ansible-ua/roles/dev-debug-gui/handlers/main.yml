@@ -1,0 +1,14 @@
+---
+- name: "Reload VNC service"
+  become: True
+  systemd:
+    name: "vncserver@1.service"
+    state: "restarted"
+    enabled: True
+    daemon_reload: True
+
+- name: "Reload workaround service"
+  become: True
+  systemd:
+    name: "vnc-workaround.service"
+    enabled: True

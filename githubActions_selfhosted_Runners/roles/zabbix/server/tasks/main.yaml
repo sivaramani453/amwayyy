@@ -1,0 +1,12 @@
+---
+- name: "Install packages"
+  include_tasks: "packages.yaml"
+
+- name: "Prepare Database"
+  include_tasks: "db.yaml"
+
+- name: "Run zabbix server"
+  include_tasks: "zabbix.yaml"
+
+- name: "Create Zabbix Admin User"
+  include_tasks: "user.yaml"

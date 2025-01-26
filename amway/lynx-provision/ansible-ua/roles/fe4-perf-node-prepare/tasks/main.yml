@@ -1,0 +1,38 @@
+---
+- name: "Mount media"
+  mount:
+    path: "/opt/media"
+    src: "{{ groups.be2.0 }}:/opt/media"
+    fstype: "nfs4"
+    opts: "rsize=8192,wsize=8192"
+    state: "mounted"
+
+- name: "h-up: Set env_type"
+  lineinfile:
+    path: "/etc/default/h-tools"
+    regexp: '^env_type =*'
+    line: "env_type = \"{{ env_name }}_fe\""
+
+- name: "h-up: Set server_type"
+  lineinfile:
+    path: "/etc/default/h-tools"
+    regexp: '^server_type =*'
+    line: "server_type = \"{{ env_name }}_fe\""
+
+- name: "Filebeat: replace beat name"
+  replace:
+    path: "/etc/filebeat/filebeat-out.yml"
+    regexp: "^name:*"
+    replace: "#name:"
+
+- name: "Filebeat: insert beat name"
+  lineinfile:
+    path: "/etc/filebeat/filebeat-out.yml"
+    regexp: "^name:*"
+    insertafter: "^#name:*"
+    line: "name: \"{{ groups.fe4.0 }}\""
+
+- name: "Filebeat: restart service"
+  service:
+    name: "filebeat-pipeline"
+    state: "restarted"

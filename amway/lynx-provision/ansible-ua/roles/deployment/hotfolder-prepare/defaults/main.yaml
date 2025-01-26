@@ -1,0 +1,19 @@
+# Hybris version
+hybris_deploy_version: "unknown"
+
+# Hybris data
+hybris_data_path: "/opt/hybris/data/amway"
+hotfolder_path: "/opt/hotfolder"
+
+# Notifications
+skype_bot_url:  "https://touch.epm-esp.projects.epam.com/bot-esp/message"
+skype_secret: "password"
+devops_chat_channel_id: "aweu_eia_system_engineering"
+skype_general_channel:
+  eu: "aweu_eia_general"
+  ru: "aweu_rlr_general"
+
+# Notifications teams
+teams_bot_url: "https://outlook.office.com/webhook/f96ab52f-f6a2-46f6-9063-6fd2bde0ce30@b41b72d0-4e9f-4c26-8a69-f949f367c91d/IncomingWebhook/"
+teams_bot_channel:
+  build_status: "build_status_channel"

@@ -1,0 +1,63 @@
+- hosts: all
+  remote_user: centos
+
+  pre_tasks:
+    - name: "Disable Selinux"
+      become: True
+      selinux:
+        state: "disabled"
+        
+    - name: Update and install tools
+      include_tasks: prepare.yaml
+
+  roles:
+  - role: "../../roles/github-actions/github-runner"
+    tags:
+      - github
+
+  - role: '../../roles/lean_delivery.java'
+    java_package: jdk
+    transport: "web"
+    transport_web: "https://nexus.hybris.eia.amway.net/repository/static-files/static-dev/jdk-8u131-linux-x64.tar.gz"
+    tags:
+      - java
+      
+  - role: "../../roles/lean_delivery.mysql"
+    mysql_datadir: "/opt/media/mysql"
+    mysql_root_password: "{{ root_password }}"
+    mysql_root_username: "root"
+    mysql_databases:
+      - name: "hybris"
+    mysql_users:
+      - name: "hybris"
+        host: "localhost"
+        password: "{{ hybris_password }}"
+        priv: "hybris.*:ALL,GRANT"
+    mysql_daemon: "mysqld"
+    mysql_version: 5.6
+    mysql_max_connections: 400
+    additional_parameters:
+      - name: character_set_server
+        value: "utf8"
+      - name: "default_storage_engine"
+        value: "InnoDB"
+    become: True
+    tags:
+      - MySQL
+
+  - role: '../../roles/lean_delivery.docker'
+    tags:
+      - Docker
+
+  - role: '../../roles/lean_delivery.nodejs'
+    nodejs_branch: 8
+    nodejs_version: "8.13.0"
+    build_tools: True    
+    tags:
+      - nodejs
+      
+  post_tasks:
+    - name: Update Npm & other possible post tasks?
+      include_tasks: post.yaml
+
+

@@ -1,0 +1,32 @@
+---
+- name: Notify error ru envs
+  uri:
+    method: POST
+    body_format: json
+    body:
+      channel: "{{ skype_general_channel.ru }}"
+      secret: "{{ skype_secret }}"
+      type: "simple"
+      text: "{{ notification_message }}"
+    status_code: 200
+    timeout: 30
+    url: "{{ skype_bot_url }}"
+    validate_certs: no
+  ignore_errors: yes
+  run_once: True
+  delegate_to: 127.0.0.1
+  when: environment_name in ru_envs
+
+- name: Notify error eu envs
+  uri:
+    method: POST
+    body_format: json
+    body:
+      text: "{{ notification_message }}"
+    status_code: 200
+    timeout: 30
+    url: "{{ teams_bot_url }}/{{ teams_bot_channel.build_status }}"
+    validate_certs: no
+  ignore_errors: yes
+  run_once: True
+  when: environment_name in eu_envs

@@ -1,0 +1,16 @@
+---
+- name: tune log rotate policy
+  become: True
+  template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: 0644  
+
+- name: Restart Docker daemon
+  become: True
+  systemd:
+    name: docker
+    state: restarted
+ 

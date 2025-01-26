@@ -1,0 +1,78 @@
+{
+  "variables": {
+    "aws_region": "eu-central-1",
+    "aws_vpc": "vpc-04d64ae6866c7d6d3",
+    "aws_subnet": "subnet-0dfcf6324786fd8ff",
+    "is_public": "false"
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "{{user `aws_region`}}",
+    "vpc_id": "{{user `aws_vpc`}}",
+    "subnet_id": "{{user `aws_subnet`}}",
+    "iam_instance_profile": "dev_debug",
+    "source_ami": "ami-0a53ad7d91bb5c91f",
+    "instance_type": "t3.large",
+    "ssh_username": "centos",
+    "associate_public_ip_address": "{{user `is_public`}}",
+    "ami_name": "ga-runner-pr {{ isotime `2006-01-02-03-04` }}",
+    "tags": {
+      "Name": "GitHub self-hosted runner for prs",
+      "OwnedBy": "Jan Machalica",
+      "UpdatedBy": "Sivakumar Ramani",
+      "ApplicationID": "APP1433689",
+      "DataClassification": "Internal",
+      "Environment": "DEV"
+    }
+  }],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": "echo 'performing check-update'; sudo yum check-update",
+      "valid_exit_codes": [0,100]
+    },
+    {
+      "type": "shell",
+      "inline": " echo 'performing update'; sudo yum update -y"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum -y install https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm",
+        "sudo yum -y install git",
+        "sudo su - github -c 'git config --global user.email \"whatever@example.com\"'",
+        "sudo su - github -c 'git config --global user.name \"Auto\"'",
+        "sudo su - github -c 'git config --global pull.ff only'",
+        "git --version"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "curl -fsSL https://rpm.nodesource.com/setup_14.x | sudo bash -",
+        "curl -fsSL https://deb.nodesource.com/test | bash -",
+        "sudo yum makecache",
+        "sudo yum install -y nodejs",
+        "sudo chown github -R /usr/lib/node_modules/",
+        "sudo npm install -g npm@7.18.1",
+        "echo -n 'nodejs: '; node -v",
+        "echo -n 'npm: '; npm -v"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm",
+        "sudo systemctl enable amazon-ssm-agent",
+        "sudo systemctl start amazon-ssm-agent",
+        "sudo yum info amazon-ssm-agent"
+      ]
+    },
+    {
+      "type": "ansible",
+      "playbook_file": "../ansible-eu/github-actions/pr-runner-update/main.yaml"
+    }
+  ]
+}

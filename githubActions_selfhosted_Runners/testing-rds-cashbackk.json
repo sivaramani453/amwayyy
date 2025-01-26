@@ -1,0 +1,128 @@
+{
+    "DBInstances": [
+        {
+            "DBInstanceIdentifier": "testing-rds-cashbackk",
+            "DBInstanceClass": "db.t3.small",
+            "Engine": "postgres",
+            "DBInstanceStatus": "available",
+            "MasterUsername": "cashback_user",
+            "DBName": "cashback_ua_qa",
+            "Endpoint": {
+                "Address": "testing-rds-cashbackk.c2i6dbp7v5gh.eu-central-1.rds.amazonaws.com",
+                "Port": 5432,
+                "HostedZoneId": "Z1RLNUO7B9Q6NB"
+            },
+            "AllocatedStorage": 40,
+            "InstanceCreateTime": "2024-06-18T10:58:11.797000+00:00",
+            "PreferredBackupWindow": "00:30-01:30",
+            "BackupRetentionPeriod": 3,
+            "DBSecurityGroups": [],
+            "VpcSecurityGroups": [
+                {
+                    "VpcSecurityGroupId": "sg-029c3a12720742c93",
+                    "Status": "active"
+                }
+            ],
+            "DBParameterGroups": [
+                {
+                    "DBParameterGroupName": "eia-cashback-db-parameter-group",
+                    "ParameterApplyStatus": "in-sync"
+                }
+            ],
+            "AvailabilityZone": "eu-central-1a",
+            "DBSubnetGroup": {
+                "DBSubnetGroupName": "amway-eks-v2-dev",
+                "DBSubnetGroupDescription": "Database subnet group for amway-eks-v2-dev",
+                "VpcId": "vpc-050e3e00a7e7c500c",
+                "SubnetGroupStatus": "Complete",
+                "Subnets": [
+                    {
+                        "SubnetIdentifier": "subnet-078b08aff327f8d4d",
+                        "SubnetAvailabilityZone": {
+                            "Name": "eu-central-1a"
+                        },
+                        "SubnetOutpost": {},
+                        "SubnetStatus": "Active"
+                    },
+                    {
+                        "SubnetIdentifier": "subnet-0cab48686f3c79516",
+                        "SubnetAvailabilityZone": {
+                            "Name": "eu-central-1b"
+                        },
+                        "SubnetOutpost": {},
+                        "SubnetStatus": "Active"
+                    }
+                ]
+            },
+            "PreferredMaintenanceWindow": "mon:22:30-mon:23:30",
+            "PendingModifiedValues": {},
+            "LatestRestorableTime": "2024-09-25T10:24:32+00:00",
+            "MultiAZ": false,
+            "EngineVersion": "16.3",
+            "AutoMinorVersionUpgrade": true,
+            "ReadReplicaDBInstanceIdentifiers": [],
+            "LicenseModel": "postgresql-license",
+            "OptionGroupMemberships": [
+                {
+                    "OptionGroupName": "default:postgres-16-db-inv52rbjtcb4tjm32jia6hgozm-upgrade",
+                    "Status": "in-sync"
+                }
+            ],
+            "PubliclyAccessible": false,
+            "StorageType": "gp2",
+            "DbInstancePort": 0,
+            "StorageEncrypted": true,
+            "KmsKeyId": "arn:aws:kms:eu-central-1:728244295542:key/759d2dc1-3ac9-4ae3-b49a-e52ed38ee95b",
+            "DbiResourceId": "db-INV52RBJTCB4TJM32JIA6HGOZM",
+            "CACertificateIdentifier": "rds-ca-rsa2048-g1",
+            "DomainMemberships": [],
+            "CopyTagsToSnapshot": true,
+            "MonitoringInterval": 60,
+            "EnhancedMonitoringResourceArn": "arn:aws:logs:eu-central-1:728244295542:log-group:RDSOSMetrics:log-stream:db-INV52RBJTCB4TJM32JIA6HGOZM",
+            "MonitoringRoleArn": "arn:aws:iam::728244295542:role/rds-monitoring-role",
+            "DBInstanceArn": "arn:aws:rds:eu-central-1:728244295542:db:testing-rds-cashbackk",
+            "IAMDatabaseAuthenticationEnabled": false,
+            "PerformanceInsightsEnabled": false,
+            "EnabledCloudwatchLogsExports": [
+                "postgresql",
+                "upgrade"
+            ],
+            "DeletionProtection": false,
+            "AssociatedRoles": [],
+            "TagList": [
+                {
+                    "Key": "DataClassification",
+                    "Value": "Internal"
+                },
+                {
+                    "Key": "Evironment",
+                    "Value": "DEV"
+                },
+                {
+                    "Key": "Terraform",
+                    "Value": "True"
+                },
+                {
+                    "Key": "ApplicationID",
+                    "Value": "APP3150571"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "rds-cashback"
+                }
+            ],
+            "CustomerOwnedIpEnabled": false,
+            "ActivityStreamStatus": "stopped",
+            "BackupTarget": "region",
+            "NetworkType": "IPV4",
+            "StorageThroughput": 0,
+            "CertificateDetails": {
+                "CAIdentifier": "rds-ca-rsa2048-g1",
+                "ValidTill": "2025-06-18T10:57:21+00:00"
+            },
+            "DedicatedLogVolume": false,
+            "IsStorageConfigUpgradeAvailable": false,
+            "EngineLifecycleSupport": "open-source-rds-extended-support-disabled"
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+[Unit]
+Description=Projector
+[Service]
+User={{ projector_user }}
+#change this directory into your workspace
+#mkdir workspace
+WorkingDirectory=/home/{{ projector_user }}
+#path to the executable bash script which executes the jar file
+ExecStart=/home/{{ projector_user }}/.local/bin/projector run
+SuccessExitStatus=143
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=multi-user.target

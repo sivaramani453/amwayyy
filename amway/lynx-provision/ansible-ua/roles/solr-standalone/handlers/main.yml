@@ -1,0 +1,5 @@
+---
+- name: "restart solr"
+  become: True
+  command: "service solr restart"
+

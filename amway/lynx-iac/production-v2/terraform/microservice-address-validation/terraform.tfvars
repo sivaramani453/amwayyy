@@ -1,0 +1,7 @@
+root_password = "uuxai4EeNathieQuoo9r"
+microservice_db_user = "address_user"
+microservice_db_pass = "2p6YwX9E9EQ6xKh7"
+path_to_ssh_key = "/home/vladimir/.ssh/amway_prod.pem"
+address_validation_url = "address-validation.amway.kz"
+adapter_auth_user = "address"
+adapter_auth_pass = "Quaiy4iep8Hoh8Waatae"

@@ -1,0 +1,188 @@
+---
+- name: Setting InitD init system variables.
+  set_fact:
+    filebeat: "{{ filebeat | combine(initd) }}"
+  when: ansible_service_mgr != 'systemd'
+
+- name: Setting elastic values
+  set_fact:
+    ssl: "{{ ssl | combine(fb_ssl) }}"
+  when: fb_ssl is defined and filebeat_ssl_enabled
+
+- name: Checking awk version
+  command: "awk --version"
+  register: awk_installed_version
+  changed_when: False
+
+- name: Set awk version number
+  set_fact:
+    awk_version: '{{ awk_installed_version.stdout_lines[0][8:13] }}'
+
+- name: Update awk to new version
+  become: yes
+  block:
+    - name: copy gawk
+      become: true
+      copy:
+        src: '{{ role_path }}/files/gawk'
+        dest: '/usr/local/bin/gawk'
+        backup: yes
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: update symlinks
+      become: yes
+      file:
+        src: '/usr/local/bin/gawk'
+        dest: '/bin/awk'
+        state: link
+  when: awk_version is version_compare('4.2.1', operator='lt', strict=True)
+
+- name: Install filebeat repository
+  become: true
+  yum_repository:
+    name: "filebeat"
+    description: "Elastic repository for {{ ELASTIC_BRANCH }} packages"
+    baseurl: "https://artifacts.elastic.co/packages/{{ ELASTIC_BRANCH }}.x/yum"
+    gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    gpgcheck: yes
+    enabled: yes
+
+- name: Install filebeat from rpm
+  become: true
+  package:
+    name: filebeat{% if filebeat_specific_version is defined %}-{{ filebeat_specific_version }}{% endif %}
+    state: present
+
+- name: Find if filebeat is installed
+  yum:
+    list: filebeat
+  register: filebeat_packages
+
+- name: Extract filebeat actual installed version
+  set_fact:
+    filebeat_rpm_version: "{{filebeat_packages|json_query(jsonquery)}}"
+  vars:
+    jsonquery: "results[?yumstate=='installed'].version"
+
+- name: Set filebeat_inputs_type
+  set_fact:
+    filebeat_inputs_type: type
+  when: filebeat_rpm_version[0] is version_compare('6.0.0', operator='ge', strict=True)
+
+- name: Set filebeat_inputs_name
+  set_fact:
+    filebeat_inputs_name: inputs
+  when: filebeat_rpm_version[0] is version_compare('6.3.0', operator='ge', strict=True)
+
+- name: Setup path folders
+  become: true
+  file:
+    path: '{{ path_folder.value }}'
+    state: directory
+  with_dict: '{{ path }}'
+  loop_control:
+    loop_var: path_folder
+
+- name: templating filebeat in/out configuration
+  become: true
+  template:
+    src: 'filebeat-{{ conf }}.yml.j2'
+    dest: '{{ path.config }}/filebeat-{{ conf }}.yml'
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - 'in'
+    - 'out'
+  loop_control:
+    loop_var: conf
+
+- name: Creating directories for awk
+  become: true
+  file:
+    path: "{{ path.config }}/{{ config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - "awk.d"
+    - "parsers.d"
+    - "inputs.d"
+  loop_control:
+    loop_var: config_dir
+
+- name: copy awk functions
+  become: true
+  copy:
+    src: '{{ role_path }}/files/awk.d/'
+    dest: '{{ path.config }}/awk.d'
+    owner: root
+    group: root
+    mode: 0644
+
+- name: templating awk parsers
+  become: true
+  template:
+    src: "{{ parser_file }}"
+    dest: "{{ path.config }}/parsers.d/{{ parser_file | basename | regex_replace('.j2','') }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_fileglob:
+    - ../templates/parsers.d/*.awk.j2
+  loop_control:
+    loop_var: parser_file
+
+- name: List parsers
+  become: true
+  find:
+    paths: '{{ path.config }}/parsers.d/'
+    patterns: "*"
+  register: awk_files
+
+- name: templating awk pipeline
+  become: true
+  template:
+    src: 'parsing-pipeline.awk.j2'
+    dest: '{{ path.config }}/parsing-pipeline.awk'
+    owner: root
+    group: root
+    mode: 0644
+
+- name: templating default input
+  become: true
+  template:
+    src: 'input.yml.j2'
+    dest: '{{ path.config }}/inputs.d/input-{{ fb_input.name }}.yml'
+    owner: root
+    group: root
+    mode: 0644
+  with_items: '{{ filebeat.inputs }}'
+  loop_control:
+    loop_var: fb_input
+
+- name: templating custom inputs
+  become: true
+  template:
+    src: 'input.yml.j2'
+    dest: '{{ path.config }}/inputs.d/input-{{ fb_input.name }}.yml'
+    owner: root
+    group: root
+    mode: 0644
+  with_items: '{{ filebeat_inputs }}'
+  loop_control:
+    loop_var: fb_input
+  when: filebeat_inputs is defined
+
+- name: templating init script.
+  become: true
+  template:
+    src: '{{ filebeat.service.template }}'
+    dest: '{{ filebeat.service.path }}'
+    owner: root
+    group: root
+    mode: u+rwx
+  notify: '{{ filebeat.service.handler }}'

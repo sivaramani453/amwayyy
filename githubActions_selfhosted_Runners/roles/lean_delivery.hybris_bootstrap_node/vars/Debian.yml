@@ -1,0 +1,15 @@
+---
+pip_executable: pip
+requirements:
+  - "unzip"
+  - "zip"
+  - "wget"
+  - "lsof"
+  - "telnet"
+  - "openssl"
+  - "curl"
+  - "net-tools"
+  - "python"
+  - "systemd"
+  - "python-argparse"
+  - "python-pip"

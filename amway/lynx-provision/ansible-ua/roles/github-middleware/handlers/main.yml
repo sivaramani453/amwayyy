@@ -1,0 +1,13 @@
+- name: "Restart middleware service"
+  become: True
+  service:
+    name: "github-middleware"
+    state: "restarted"
+    enabled: True
+
+- name: "Restart nginx service"
+  become: True
+  service:
+    name: "nginx"
+    state: "restarted"
+    enabled: True

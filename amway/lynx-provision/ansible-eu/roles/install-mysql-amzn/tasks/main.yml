@@ -1,0 +1,66 @@
+---
+  - name: Install mysql repo
+    yum:
+      name: "{{ mysql_repo }}"
+      state: present
+
+  - name: Disable Latest && Enable desired version of SQL
+    shell: |
+      yum-config-manager --disable mysql80-community
+      yum-config-manager --enable {{ mysql_pkg_version }}
+
+  - name: Install mysql server & client
+    yum:
+      name: mysql-community-server
+      state: present
+
+  - name: Start service mysql
+    systemd:
+      name: mysqld
+      state: started
+
+  - name: Install PyMysql for Queries
+    pip:
+      name: pymysql
+      executable: pip
+
+  - name: run mysql_secure_installation without prompts | set root passwd | drop annonymous login | drop test db
+    community.mysql.mysql_query:
+      query:
+      - UPDATE mysql.user SET Password=PASSWORD('{{ mysql_password }}') WHERE User='root'
+      - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')
+      - DELETE FROM mysql.user WHERE User=''
+      - DELETE FROM mysql.db WHERE Db='test' OR Db='test_%'
+      - FLUSH PRIVILEGES
+      single_transaction: yes
+
+  - name: Create a new database
+    community.mysql.mysql_db:
+      check_implicit_admin: yes
+      login_user: root
+      login_password: "{{ mysql_password }}"
+      name: "{{ mysql_new_db }}"
+      state: present
+
+  - name: Create database user with password and all database privileges and 'WITH GRANT OPTION'
+    community.mysql.mysql_user:
+      check_implicit_admin: yes
+      login_user: root
+      login_password: "{{ mysql_password }}"
+      name: "{{ mysql_new_user }}"
+      password: "{{ mysql_new_pass }}"
+      priv: "{{ mysql_new_db }}.*:ALL,GRANT"
+      state: present
+
+  # - name: Copy my.cnf global MySQL configuration
+  #   template:
+  #     src: my.cnf.j2
+  #     dest: '{{ mysql_config_file }}'
+  #     mode: 0644
+  #     owner: root
+  #     group: root
+
+  - name: Restart service mysql
+    systemd:
+      name: mysqld
+      state: restarted

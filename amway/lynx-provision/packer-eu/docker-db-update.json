@@ -1,0 +1,63 @@
+{
+  "variables": {
+    "aws_access_key": "",
+    "aws_secret_key": "",
+    "docker_registry_username": "{{ vault `/amway/data/nexus/docker` `username` }}",
+    "docker_registry_password": "{{ vault `/amway/data/nexus/docker` `password` }}",
+    "aws_region": "eu-central-1"
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "{{user `aws_region`}}",
+    "subnet_id": "subnet-0dfcf6324786fd8ff",
+    "vpc_id": "vpc-04d64ae6866c7d6d3",
+    "iam_instance_profile": "dev_debug",
+    "associate_public_ip_address": false,
+    "source_ami_filter": {
+      "filters": {
+      "virtualization-type": "hvm",
+      "name": "centos7-golden*",
+      "root-device-type": "ebs"
+      },
+      "owners": ["self"],
+      "most_recent": true
+    },
+    "launch_block_device_mappings": [
+     {
+      "device_name": "/dev/sda1",
+      "volume_size": 20,
+      "volume_type": "gp2",
+      "delete_on_termination": true
+     }
+    ],	
+    "instance_type": "t3.xlarge",
+    "ssh_username": "centos",
+    "ami_name": "DOCKER-DB-UPDATE {{ isotime \"2006-01-02-03-04\" }}",
+    "tags": {
+      "Name": "docker db update created by packer",
+      "OwnedBy": "Vladimir Antropov",
+      "ApplicationID": "APP1433689",
+      "DataClassification": "Internal",
+      "Environment": "DEV"
+    }
+  }],
+  "provisioners": [
+    {
+      "type": "shell-local",
+      "inline": "cd ../ansible/docker-db-update && ansible-galaxy install -r requirements.yml -p ../roles/ -f"
+	},
+    {
+      "type": "ansible",
+      "extra_arguments": [
+        "-v", "--extra-vars", "docker_registry_username={{user `docker_registry_username`}} docker_registry_password={{user `docker_registry_password`}}"
+      ],
+      "playbook_file": "../ansible/docker-db-update/bootstrap-ami.yml"
+    },
+    {
+      "type": "shell",
+      "inline": ["sudo sed -i '$ a ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCwGqeGdpaBUQPVzzOJtiJ1fbmD5wD3sdi4hmTT4VmBsLmG0F1b144LQRKWsZoxYtf6dnf/VS6WldWl5ZQ7EFb9+V60Tg5V4y2ehsfXC19xw3htGkhdywC+Ps5B09EaTeby1g23a7makZ+bhkvuRsEPwOwfHe5e8BHEdnxI7qhMgchRYZEEyFVrHiT64DM7WyfjZnZFHw6S3eP2F91rwJC0EvsXOA/G7EYwP2+dkStsyLtPcBOGvn5SPLSbnuzhsXbGx0aNMxgSCp5dUGCbJ92cJvc5fW/biQPIXAIIYMv4VJHTNJ8DYKmAPZXw8ybjMLbqwA5q7hkEodNPmph5pXHFEAK9X8GWp1zkW9Bt6A72GnJbPIbYgaxeY8hRx7GzHe9JJWRnTs6iL0BgwKiZTi9LOQK31j1ASCDy3JhPlxQacnutpGdlN+kpHJYat0N9ONBvAr4RPDvJ7Cj1CnyMtvsGe2Lz7SntYe124SycuP+w7J9Xfeda7rcKQUxEm8o09uWOTJAoXoKEQAbezQuealfkewZnzTeTvW9oJBccigxjNmvuQ0OUp2FhltF4plQEdkRK6g9wlzMypKehrQoOY+mCT1WJY7tjt6RkairSCEFXbiXOqgRgIfWh86kqWRBIL2mY9y1SZKVCiYcODFhxVEfH5vMnb2vb5I5tJlwd8i08PQ==' /root/.ssh/authorized_keys"]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "variables": {
+    "aws_access_key": "",
+    "aws_secret_key": "",
+    "aws_region": "us-east-1",
+    "aws_vpc": "vpc-0f09ff71922bacf3a",
+    "aws_subnet": "subnet-0a976f7823f870280",
+    "is_public": "true"
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "{{user `aws_region`}}",
+    "iam_instance_profile": "github-role",
+    "vpc_id": "{{user `aws_vpc`}}",
+    "subnet_id": "{{user `aws_subnet`}}",
+    "source_ami_filter": {
+      "filters": {
+      "virtualization-type": "hvm",
+      "name": "RHEL-9.4.0_HVM-20240605-x86_64-82-Hourly2-GP3",
+      "root-device-type": "ebs"
+      },
+      "owners": ["amazon"],
+      "most_recent": true
+    },
+    "ami_block_device_mappings": [
+      {
+        "delete_on_termination": true,
+        "device_name": "/dev/sda1",
+        "volume_type": "gp2",
+        "volume_size": 8
+      }
+    ],
+    "instance_type": "t3.micro",
+    "ssh_username": "ec2-user",
+    "associate_public_ip_address": "{{user `is_public`}}",
+    "ami_name": "RHEL-9.4.0-golden {{ isotime `2006-01-02-03-04` }}",
+    "tags": {
+      "Name": "created by packer",
+      "ApplicationID": "APP1433689",
+      "OwnedBy": "Sivakumar Ramani",
+      "DataClassification": "Internal",
+      "Environment": "DEV"
+    }
+  }],
+  "provisioners": [{
+    "type": "shell",
+    "inline": [
+      "sleep 30",
+      "sudo yum update -y",
+      "sudo sed -i '$afs.file-max=65535' /etc/sysctl.conf",
+      "sudo sed -i '$avm.max_map_count=262144' /etc/sysctl.conf"
+    ]
+  }]
+}

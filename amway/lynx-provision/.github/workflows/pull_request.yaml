@@ -1,0 +1,103 @@
+# This is a basic workflow to help you get started with Actions
+name: Verify Pull Request
+
+on:
+  workflow_dispatch:
+    #pull_request:
+    #branches:
+    #  - master
+    #types: [opened, reopened, synchronize]
+
+env:
+  WORKDIR: CODEBASE
+
+jobs:
+  sonar-check:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout repo
+      env:
+        GIT_USER: EUJJZU8
+      run: |
+        git clone -b "${{ github.event.pull_request.head.ref }}" \
+                     "https://$GIT_USER:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository}}" $WORKDIR
+
+    - name: Sonar check
+      env:
+        BRANCH: "${{ github.event.pull_request.head.ref }}"
+        SONAR_URL: "https://sonarqube-ent-eu.security.corp.amway.net"
+        SONAR_USER: "EPAMSecurityUser"
+        SONAR_PROJECT: "eia-lynx-provision"
+        SONAR_SCANNER_OPTS: "-Xmx512m"
+      run: |
+        cd $WORKDIR
+        sonar-scanner \
+          -Dsonar.projectKey="$SONAR_PROJECT" \
+          -Dsonar.sources=. \
+          -Dsonar.pullrequest.key="${{ github.event.pull_request.number }}" \
+          -Dsonar.pullrequest.branch="$BRANCH" \
+          -Dsonar.pullrequest.base="${{ github.event.pull_request.base.ref }}" \
+          -Dsonar.host.url="$SONAR_URL" \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+    - name: Check QG status
+      shell: python
+      env:
+        BRANCH: "${{ github.event.pull_request.head.ref }}"
+        PR_NUM: "${{ github.event.pull_request.number }}"
+        SONAR_URL: "https://sonarqube-ent-eu.security.corp.amway.net/api/qualitygates/project_status"
+        SONAR_USER: "EPAMSecurityUser"
+        SONAR_PROJECT: "eia-lynx-provision"
+      run: |
+        import os
+        import time
+        import requests
+
+        # Const
+        pr = os.environ.get("PR_NUM")
+        url = os.environ.get("SONAR_URL")
+        user = os.environ.get("SONAR_USER")
+        secret = "${{ secrets.SONAR_PASSWORD }}"
+
+        auth = (user, secret)
+        params = {"projectKey": "eia-lynx-provision", "pullRequest": pr}
+
+        class TimeoutError(Exception):
+            pass
+            
+        # repeat requets multiple times
+        def repeat(times):
+            def inner(func):
+                def wrapper(*args, **kwargs):
+                    for i in range(times):
+                        resp = func(*args, **kwargs)
+                        if resp.status_code == 200:
+                            return resp
+                        elif resp.status_code != 404:
+                            raise RuntimeError("Could not get valid response from sonar server. Status code is {0}".format(resp.status_code))
+                        print("Could not get qd status from #{0} attempt".format(i+1))
+                        time.sleep(10)
+                    raise TimeoutError("Function {0} did not succeed via {1} attempts".format(func.__name__, times))
+                return wrapper
+            return inner
+
+        @repeat(30)
+        def get_qg_status(url, auth, params):
+            resp = requests.get(url, auth=auth, params=params)
+            return resp
+
+
+        resp = get_qg_status(url, auth, params)
+
+        resp_json = resp.json()
+        if resp_json.get("projectStatus", {}).get("status") != "OK":
+            raise RuntimeError("PR status is not OK, please check sonar")
+
+        print("OK")
+
+    - name: Clean up
+      if: ${{ always() }}
+      run: |
+        rm -vrf *
+

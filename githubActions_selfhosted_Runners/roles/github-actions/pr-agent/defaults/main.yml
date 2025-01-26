@@ -1,0 +1,20 @@
+---
+# Runner
+runner_user: github
+runner_group: github
+
+# Hybris
+hybris_db_user: hybris
+hybris_db_password: hybris
+hybris_db_name: hybris
+
+# MySQL
+db_root_password: root
+
+# Nexus
+hybris_nexus_url: "https://nexus.hybris.eu.eia.amway.net/repository/static-files/hybris"
+hybris_artifact_dest: "/opt/github"
+hybris_artifact_list: ["last_6.6.0.19.zip"]
+
+# NPM
+npm_version: "6.14.13"

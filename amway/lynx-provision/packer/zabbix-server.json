@@ -1,0 +1,54 @@
+{
+  "variables": {
+    "aws_region": "eu-central-1",
+    "aws_vpc": "vpc-1fbfbe76",
+    "aws_subnet": "subnet-5993d314",
+    "is_public": "false",
+    "mysql_zabbix_password": "{{ vault `/kv/data/zabbix` `mysql_zabbix_password` }}",
+    "zabbix_admin_password": "{{ vault `/kv/data/zabbix` `zabbix_admin_password` }}",
+    "mariadb_root_password": "{{ vault `/kv/data/zabbix` `mysql_root_password` }}",
+    "misc_grafana_admin_password": "{{ vault `/kv/data/zabbix` `grafana_admin_password`}}",
+    "misc_skype_secret": "{{ vault `/kv/data/bots/devops_skype_bot` `secret` }}",
+    "misc_skype_bot_url": "{{ vault `/kv/data/bots/devops_skype_bot` `url` }}",
+    "misc_aws_access_key": "{{ vault `/kv/data/zabbix` `aws_access_key`}}",
+    "misc_aws_secret_key": "{{ vault `/kv/data/zabbix` `aws_secret_key`}}"
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "{{user `aws_region`}}",
+    "vpc_id": "{{user `aws_vpc`}}",
+    "subnet_id": "{{user `aws_subnet`}}",
+    "source_ami_filter": {
+      "filters": {
+      "virtualization-type": "hvm",
+      "name": "centos7-golden*",
+      "root-device-type": "ebs"
+      },
+      "owners": ["self"],
+      "most_recent": true
+    },
+    "instance_type": "t3.large",
+    "ssh_username": "centos",
+    "associate_public_ip_address": "{{user `is_public`}}",
+    "ami_name": "zabbix-server {{ isotime `2006-01-02-03-04` }}",
+    "tags": {
+      "Name": "zabbix server baked by packer",
+      "OwnedBy": "George Kakovkin"
+    }
+  }],
+  "provisioners": [
+    {
+      "type": "shell-local",
+      "inline": "cd ../ansible/zabbix-server && ansible-galaxy install -r requirements.yml -p ../roles/ -f"
+    },
+    {
+      "type": "ansible",
+      "extra_arguments": [
+        "-v", "--extra-vars", "mysql_zabbix_password={{user `mysql_zabbix_password`}} zabbix_admin_password={{ user `zabbix_admin_password` }} mariadb_root_password={{ user `mariadb_root_password` }} mysql_master_password={{ user `mariadb_root_password` }} misc_skype_secret={{ user `misc_skype_secret` }} misc_skype_bot_url={{ user `misc_skype_bot_url` }} misc_aws_access_key={{ user `misc_aws_access_key` }} misc_aws_secret_key={{ user `misc_aws_secret_key` }} misc_grafana_admin_password={{ user `misc_grafana_admin_password` }}"
+      ],
+      "playbook_file": "../ansible/zabbix-server/main.yaml"
+    }
+  ]
+}

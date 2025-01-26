@@ -1,0 +1,52 @@
+- name: Provision Nginx caching proxy configuration
+  hosts: all
+  remote_user: centos
+  become: yes	
+  vars_files:
+    - ./vars.yml
+  roles:
+    - { role: "../roles/nginxinc.nginx" }
+  tasks:
+    - name: Ensure required directories for cfg files exists
+      file:
+        name: "{{ item }}"
+        state: directory
+      loop:
+        - /etc/nginx/sites-available
+        - /etc/nginx/sites-enabled
+
+    - name: Copy generic cfg for nginx proxy
+      copy:
+        src: configs/nginx_generic.conf
+        dest: /etc/nginx/nginx.conf
+
+    - name: Render configuration for ts3 API proxy
+      template: 
+        src: configs/nginx_proxy.conf.j2
+        dest: /etc/nginx/sites-available/proxy_ts3.conf
+      vars:
+        server_name: "{{ ts3_proxy.server_name }}"
+        upstream: "{{  ts3_proxy.upstream }}"
+
+    - name: Create symlinks for a cfg files
+      file:
+        src: /etc/nginx/sites-available/proxy_{{ item }}.conf
+        dest: /etc/nginx/sites-enabled/proxy_{{ item }}.conf
+        state: link
+      loop:
+        - ts3
+        
+    - name: Install SELinux dev software
+      yum:
+        name: selinux-policy-devel
+        state: present
+        
+    - name: Set SELinux policy to allow binding Nginx to {{ proxy_listen_port }} port
+      shell: semanage port -a -t http_port_t -p tcp {{ proxy_listen_port }}
+
+    # This step will fail if anything is screwed, therefore preventing creation of botched image
+    # Well... At least if anything in CFG is broken.
+    - name: Restart nginx to verify things are working
+      systemd:
+        name: nginx
+        state: restarted

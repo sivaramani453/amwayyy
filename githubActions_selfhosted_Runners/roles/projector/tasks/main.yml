@@ -1,0 +1,52 @@
+- name: "Attempt to install packages needed by Projector"
+  become: true
+  yum:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - less
+    - libXext
+    - libXrender
+    - libXtst
+    - libXi
+    - freetype
+
+- name: "Install Projector"
+  become: yes
+  become_user: "{{ projector_user }}"
+  shell: pip3 install projector-installer --user
+
+- name: "Execute projector install"
+  become: yes
+  become_user: "{{ projector_user }}"
+  shell: "printf 'y\n{{ projector_ide_option }}\ny\n{{ projector_ide_version_option }}\n' | ~/.local/bin/projector install --no-auto-run"
+  # Please check README for magic explanation
+
+- name: "Provide service cfg for Projector"
+  become: true
+  template:
+    src: files/projector.service.j2
+    dest: /etc/systemd/system/projector.service
+
+- name: Reload and enable the service (do not start yet)
+  become: true
+  shell: systemctl daemon-reload && systemctl enable projector.service
+
+- name: Creating plugins dir
+  become: true
+  shell: sudo mkdir -p /home/{{ projector_user }}/.projector/apps/idea-IC-203.7148.57/plugins
+
+- name: Changing permissions of plugins dir
+  become: true
+  shell: sudo chmod 777 /home/{{ projector_user }}/.projector/apps/idea-IC-203.7148.57/plugins
+
+- name: Install plugins for IntelliJ
+  become: yes
+  become_user: "{{ projector_user }}"
+  unarchive:
+    src: "{{ item }}"
+    dest: /home/{{ projector_user }}/.projector/apps/idea-IC-203.7148.57/plugins
+    remote_src: yes
+  loop:
+    - https://plugins.jetbrains.com/plugin/download?rel=true&updateId=130974
+    - https://plugins.jetbrains.com/plugin/download?rel=true&updateId=128296

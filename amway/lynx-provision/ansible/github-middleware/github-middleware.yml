@@ -1,0 +1,11 @@
+---
+- hosts: "all"
+  become: True
+# Just to make things easy
+  pre_tasks:
+    - name: "Disable Selinux"
+      selinux:
+        state: "disabled"
+  roles:
+    - { role: "../roles/nginxinc.nginx" }
+    - { role: "../roles/github-middleware" }

@@ -1,0 +1,137 @@
+---
+#Some postprovision for MySQL role when 5.7 version will be used 
+#- name: "Configure password policy for mysql"
+#  become: True
+#  lineinfile:
+#    path: "/etc/my.cnf"
+#    insertafter: '^\[mysqld\]$'
+#    line: "validate_password_length = 4\nvalidate_password_policy=LOW"
+#    state: present
+  
+#- name: "Restart mysql"
+#  become: True
+#  service:
+#    name: "mysqld"
+#    state: restarted
+
+- name: "Create database"
+  mysql_db:
+    login_user: "root"
+    login_password: "{{db_root_password}}"
+    name: "{{ db_name }}"
+    state: "present"
+
+- name: "Create hybris user"
+  mysql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    login_user: "root"
+    login_password: "{{ db_root_password }}"
+    priv: "*.*:ALL,GRANT"
+    host: localhost  
+
+# Other stuff
+- name: Install epel anyway
+  become: True
+  yum:
+    name:
+      - epel-release
+    state: "present"
+    
+- name: Install git repo
+  become: True
+  yum:
+    name: "https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm"
+    state: present
+
+- name: Install tools
+  become: True
+  yum:
+    name: 
+      - zip
+      - unzip
+      - wget
+      - bzip2
+      - jq
+      - git
+    state: "latest"
+    update_cache: yes
+
+- name: Create git-credentials
+  become: True
+  template: 
+    src: ".git-credentials.j2"
+    dest: "/home/{{ bamboo_agent_user }}/.git-credentials"
+    owner:  "{{ bamboo_agent_user }}"
+    group: "{{ bamboo_agent_user }}"
+    mode: '600'
+    
+- name: Create gitconfig
+  become: True
+  template: 
+    src: ".gitconfig.j2"
+    dest: "/home/{{ bamboo_agent_user }}/.gitconfig"
+    owner:  "{{ bamboo_agent_user }}"
+    group: "{{ bamboo_agent_user }}"
+    
+- name: Create sudo rule
+  become: True
+  template: 
+    src: "10-bamboo-user.j2"
+    dest: "/etc/sudoers.d/10-{{ bamboo_agent_user }}-user"
+    mode: "440"
+    owner: "root"
+    group: "root"
+
+- name: Create directory for media
+  become: True
+  file:
+    path: "/opt/media"
+    state: "directory"
+    owner:  "{{ bamboo_agent_user }}"
+    group: "{{ bamboo_agent_user }}"
+
+- name: Create directory for se-tools
+  become: True
+  file:
+    path: "/opt/se-tools"
+    state: "directory"
+
+- name: Create directory for junit_xml_output lib 
+  become: True
+  file:
+    path: "/opt/se-tools/junit_xml_output"
+    owner: "root"
+    group: "root"
+    state: "directory"
+
+- name: Add junit_xml_output lib
+  become: True
+  template: 
+    src: "__init__.py.j2"
+    dest: "/opt/se-tools/junit_xml_output/__init__.py"
+    owner: "root"
+    group: "root"
+    mode: '755'
+
+- name: Add rules
+  become: True
+  template: 
+    src: "rules.j2"
+    dest: "/opt/se-tools/rules"
+    owner: "root"
+    group: "root"
+
+- name: Download hybris artifact from nexus
+  get_url:
+   url: "{{ hybris_nexus_url }}/{{ item }}"
+   dest: "{{ hybris_artifact_dest }}"
+   mode: "0644"
+   owner: "{{ bamboo_agent_user }}"
+   group: "{{ bamboo_agent_user }}"
+   checksum: "md5:{{ hybris_nexus_url }}/{{ item }}.md5"
+  loop: "{{ hybris_artifact_list }}"
+  register: hybris_artifact_downloaded
+  until: hybris_artifact_downloaded is succeeded
+  retries: 3
+  delay: 2

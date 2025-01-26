@@ -1,0 +1,60 @@
+---
+# defaults for multiline filebeat
+path:
+  home: /usr/share/filebeat
+  config: /etc/filebeat
+  data: /var/lib/filebeat
+  logs: /var/log/filebeat
+
+win:
+  path:
+    home: 'C:\program files\filebeat'
+    config: 'C:\program files\filebeat'
+    data: 'c:\programdata\filebeat'
+    logs: 'c:\programdata\filebeat\logs'
+  ssl:
+    key: 'c:\tls\private\server.key'
+    certificate: 'c:\tls\certs\server.pem'
+    certificate_authorities: 'c:\CA\ca-root.pem'
+
+elasticsearch:
+  host: localhost
+  port: 9200
+
+initd:
+  service:
+    path: /etc/init.d/{{ filebeat_service_name }}
+    template: filebeat-template.initd.j2
+    handler: start_filebeat_initd
+
+filebeat_version: 6.x
+filebeat_inputs_name: prospectors
+filebeat_inputs_type: input_type
+filebeat_service_name: filebeat-pipeline
+filebeat_node_name: "{{ inventory_hostname }}"
+filebeat_output: "elasticsearch"
+filebeat_ssl_enabled: false
+win_awk_install_path: 'C:\program files\awk'
+
+
+filebeat:
+  service:
+    path: "/usr/lib/systemd/system/{{ filebeat_service_name }}.service"
+    template: filebeat-template.systemd.j2
+    handler: start_filebeat_systemd
+  inputs:
+    - name: filebeat
+      paths:
+        - "{{ path.logs }}/filebeat-in.log"
+      fields:
+        logtype: filebeat_input
+        index_name: filebeat_input
+
+ssl:
+  key: "/etc/pki/tls/private/server.key"
+  certificate: "/etc/pki/tls/certs/server.crt"
+  certificate_authorities: "/etc/pki/CA/ca-root.pem"
+
+
+# awk section
+AWK_URL: "https://sourceforge.net/projects/ezwinports/files/gawk-4.2.1-w32-bin.zip/download"

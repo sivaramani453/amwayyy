@@ -1,0 +1,4 @@
+---
+nodejs_repo: "https://rpm.nodesource.com/setup_8.x"
+node_js_repo_script: "setup_8.x"
+nodejs_version: 8.1.2

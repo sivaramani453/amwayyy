@@ -1,0 +1,65 @@
+#Zabbix Server Vars
+zabbix_server_version: 4.2
+zabbix_admin_password: zabbix
+zabbix_server_name: zabbix-server
+zabbix_server_port: 10051
+zabbix_server_logtype: file
+zabbix_server_log_file: /var/log/zabbix/zabbix_server.log
+zabbix_server_log_file_size: 50
+zabbix_server_log_level: 3
+zabbix_server_pid_file: /var/run/zabbix/zabbix_server.pid
+zabbix_server_socket_dir: /var/run/zabbix
+zabbix_server_start_pollers: 10
+zabbix_server_start_preprocesses: 3
+zabbix_server_start_pollers_unreachable: 5
+zabbix_server_start_trappers: 5
+zabbix_server_start_pingers: 1
+zabbix_server_start_discoverers: 1
+zabbix_server_start_http_pollers: 3
+zabbix_server_start_timers: 1
+zabbix_server_start_escalators: 5
+zabbix_server_start_alerters: 5
+zabbix_server_java_gateway_address: 127.0.0.1
+zabbix_server_java_gateway_port: 10052
+zabbix_server_start_java_pollers: 5
+zabbix_server_housekeeping_frequency: 4
+zabbix_server_cache_size: 512M
+zabbix_server_update_cache_frequency: 60
+zabbix_server_start_db_syncers: 4
+zabbix_server_history_cache_size: 128M
+zabbix_server_history_index_cache: 4M
+zabbix_server_trend_cache_size: 4M
+zabbix_server_value_cache_size: 64M
+zabbix_server_timeout: 5
+zabbix_server_log_slow_query: 3000
+zabbix_server_start_proxy_pollers: 1
+zabbix_server_proxy_config_frequency: 3600
+zabbix_server_proxy_data_frequency: 1
+zabbix_server_start_lldp: 3
+zabbix_server_allow_root: 0
+zabbix_server_run_as_user: zabbix
+zabbix_server_alertscripts_path: /usr/lib/zabbix/alertscripts
+zabbix_server_externalsripts_path: /usr/lib/zabbix/externalscripts
+# Java Gateway
+zabbix_server_java_listen_ip: 127.0.0.1
+zabbix_server_java_listen_port: 10052
+zabbix_server_java_pid_file: /var/run/zabbix/zabbix_java.pid
+zabbix_server_java_start_pollers: 5
+zabbix_server_java_timeout: 5
+
+# Mysql vars
+mysql_new_installation: False
+
+mysql_server_address: 127.0.0.1
+mysql_server_port: 3306
+mysql_master_username: root
+mysql_master_password: root
+
+mysql_zabbix_username: zabbix
+mysql_zabbix_password: zabbix
+mysql_zabbix_database: zabbix
+
+# Misc vars
+misc_update_all: True
+misc_install_tools: True
+additional_packages: ["jq", "git", "joe", "vim", "tmux", "htop", "iotop", "tcpdump", "sysstat"]

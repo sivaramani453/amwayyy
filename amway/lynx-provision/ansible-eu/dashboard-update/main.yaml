@@ -1,0 +1,35 @@
+---
+- hosts: "all"
+  vars:
+    rsync_remote_dir: "/opt/dashboard/site"
+    rsync_local_dir: ""
+    nginx_user: "nginx"
+    nginx_group: "nginx"   
+
+  tasks:
+    - name: Update Dashboard
+      block:
+        - name: Sync Dashboard Code
+          synchronize:
+            src: "{{ rsync_local_dir }}"
+            dest: "{{ rsync_remote_dir }}"
+            delete: yes
+            recursive: yes
+            rsync_opts:
+              - "--exclude=.git"
+              - "--exclude=README.md"
+              - "--exclude=.github"
+              - "--exclude=get_status.php"  
+
+        - name: "Set permissons on {{ rsync_remote_dir }}"
+          file:
+            dest: "{{ rsync_remote_dir }}"
+            owner: "{{ nginx_user }}" 
+            group: "{{ nginx_group }}"
+            recurse: yes
+
+        - name: Restart Nginx
+          systemd:
+            name: nginx
+            state: restarted
+      become: True    

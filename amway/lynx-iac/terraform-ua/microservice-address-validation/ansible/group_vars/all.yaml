@@ -1,0 +1,59 @@
+## java     
+java_distribution: oracle_java
+java_package: jre
+java_major_version: 8
+java_tarball_install: true
+transport: 'web'
+transport_web: 'https://nexus.hybris.eia.amway.net/repository/static-files/static-dev/jre-8u131-linux-x64.tar.gz'
+    
+## zookeeper
+zk_version: 3.4.14
+zk_url: http://archive.apache.org/dist/zookeeper/zookeeper-{{zk_version}}/zookeeper-{{zk_version}}.tar.gz
+zk_client_port: 2181
+zk_init_limit: 5
+zk_sync_limit: 2
+zk_data_dir: '/var/lib/zookeeper'
+zk_log_dir: '/var/log/zookeeper'
+zk_dir: '/opt/zookeeper'
+zk_tarball_dir: '/opt'
+
+## solr
+solr_version: '7.6.0'
+solr_java_xms: '6G'
+solr_java_xmx: '6G'
+solr_service_start: false
+solr_ssl_configure: false
+solr_auth_configure: false
+
+## solr-cloud
+zk_inventory_group: zookeeper
+solr_configset_path: '{{ solr_home }}/configsets'
+configset_list:
+  - default
+auto_populate_configset_list: false
+zk_enable_ssl: false
+solr_host_naming: '{{ inventory_hostname }}'
+
+## solar maven library
+solr_maven_libs_version: '42.2.8'
+solr_maven_group_id: 'org.postgresql'
+solr_maven_repository_url: 'https://repo1.maven.org/maven2'
+solr_maven_libs_list:
+  - 'postgresql'
+solr_maven_libs_dest: '{{ solr_dest_path }}/contrib/dataimporthandler/lib'
+
+## solr plugin
+solr_plugin_lib_dest: '{{ solr_dest_path }}/dist'
+solr_plugin_lib_src:  'https://nexus.hybris.eia.amway.net/repository/static-files/static-dev/solr-plugin.jar'
+
+## solr efs backup directory
+solr_efs_mountpoint_dest: '{{ solr_dest_path }}/backup'
+solr_efs_mountpoint_src: ''
+
+## solr systemd service
+solr_systemd_service_path: '/usr/lib/systemd/system/solr.service'
+solr_systemd_service_line:
+  - 'LimitNOFILE=65000'
+  - 'LimitNPROC=65000'
+
+

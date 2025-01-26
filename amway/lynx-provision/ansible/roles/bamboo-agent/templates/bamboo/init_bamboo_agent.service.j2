@@ -1,0 +1,10 @@
+[Unit]
+Description=Daemon to init bamboo agent
+After=syslog.target
+
+[Service]
+User=root
+ExecStart=/opt/scripts/init_bamboo_agent.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+splunk-kubernetes-metrics:
+  enabled: false
+splunk-kubernetes-objects:
+  enabled: false
+splunk-kubernetes-logging:
+  image:
+    registry: 417642731771.dkr.ecr.ap-northeast-1.amazonaws.com
+    name: jp-common-addons-splunk-fluentd-hec
+    tag: 1.2.13
+  fluentd:
+    exclude_path:
+      - /var/log/containers/*_kube-system_*.log
+      - /var/log/containers/*_shared_*.log
+resources:
+  limits:
+    cpu: "200m"
+    memory: "400Mi"
+  requests:
+    cpu: "100m"
+    memory: "200Mi"

@@ -1,0 +1,24 @@
+---
+- name: Update All Packages
+  become: True
+  yum:
+    name: "*"
+    state: "latest"
+
+- name: Install epel repo
+  become: True
+  yum:
+    name: "epel-release"
+    state: "present"
+
+- name: Install useful tools
+  become: True
+  yum:
+    name: 
+      - joe 
+      - vim
+      - tmux
+      - wget
+      - tcpdump
+      - git
+    state: "present"  

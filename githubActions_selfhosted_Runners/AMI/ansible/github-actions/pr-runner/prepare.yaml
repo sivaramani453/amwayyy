@@ -1,0 +1,35 @@
+---
+- name: "Create parent datadir for mysql"
+  become: true
+  file:
+    path: /opt/media
+    state: directory
+    owner: root
+    mode: 0755
+
+
+- name: Install packages and python modules
+  become: true
+  block:
+    - name: Update All Packages
+      yum:
+        name: "*"
+        state: "latest"
+
+    - name: Install useful tools
+      yum:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ install_packages }}"
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+        
+    - name: Install pip packages
+      pip:
+        name: "{{ item }}"
+        executable: "pip3"
+      loop: "{{ install_pip_modules }}"

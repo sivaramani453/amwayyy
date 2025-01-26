@@ -1,0 +1,50 @@
+---
+- name: Nodejs installation
+  block:
+    - name: Make sure apt-transport-https is installed
+      apt:
+        name: apt-transport-https
+        state: present
+      register: status
+      retries: 10
+      delay: 2
+      until: status is succeeded
+
+    - name: Add node.js apt key
+      apt_key:
+        url: '{{ nodejs_apt_key }}'
+        state: present
+      register: status
+      retries: 10
+      delay: 2
+      until: status is succeeded
+
+    - name: Add node.js repositories
+      apt_repository:
+        repo: '{{ nodejs_apt_url }}'
+        state: present
+        update_cache: true
+      register: status
+      retries: 10
+      delay: 2
+      until: status is succeeded
+
+    - name: Install node.js and npm
+      package:
+        name: 'nodejs={{ nodejs_version }}'
+        state: present
+      register: status
+      retries: 10
+      delay: 2
+      until: status is succeeded
+
+    - name: Install build tools
+      package:
+        name: build-essential
+        state: present
+      register: status
+      retries: 10
+      delay: 2
+      until: status is succeeded
+      when: build_tools
+  become: true

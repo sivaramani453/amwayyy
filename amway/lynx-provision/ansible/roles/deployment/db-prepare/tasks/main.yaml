@@ -1,0 +1,66 @@
+---
+- name: Execute SQL Queries (replace solr ips)
+  block:
+    - name: Copy sql query to replace solr ip addresses
+      template:
+        src: replace_solr_ip.sql.j2
+        dest: /tmp/replace_solr_ip.sql
+      when:
+        - fix_solr_ip
+
+    - name: Run mysql query to replace solr ip addresses
+      mysql_db:
+        login_user: "{{ mysql_hybris_user }}"
+        login_password: "{{ mysql_hybris_password }}"
+        login_host: "{{ mysql_hybris_host }}"
+        name: hybris
+        state: import
+        target: /tmp/replace_solr_ip.sql
+      when:
+        - fix_solr_ip
+
+    - name: Copy sql query to truncate solr ip addresses
+      template:
+        src: truncate_solr_ip.sql.j2
+        dest: /tmp/truncate_solr_ip.sql
+      when:
+        - truncate_solr_ip
+
+    - name: Run mysql query to truncate solr ip addresses
+      mysql_db:
+        login_user: "{{ mysql_hybris_user }}"
+        login_password: "{{ mysql_hybris_password }}"
+        login_host: "{{ mysql_hybris_host }}"
+        name: hybris
+        state: import
+        target: /tmp/truncate_solr_ip.sql
+      when:
+        - truncate_solr_ip
+
+    - name: Copy sql query to add hybris version
+      template:
+        src: add_version.sql.j2
+        dest: /tmp/add_version.sql
+      when:
+        - add_date_and_version
+
+    - name: Run mysql query to truncate solr ip addresses
+      mysql_db:
+        login_user: "{{ mysql_hybris_user }}"
+        login_password: "{{ mysql_hybris_password }}"
+        login_host: "{{ mysql_hybris_host }}"
+        name: hybris
+        state: import
+        target: /tmp/add_version.sql
+      when:
+        - add_date_and_version
+  rescue:
+    - name: Notify about failure
+      include_role: 
+        name: "../roles/notification-with-tags" 
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Could not {{ ansible_failed_task.name }}"
+
+    - name: Now fail real
+      fail:
+        msg: "Could not {{ ansible_failed_task.name }}"

@@ -1,0 +1,40 @@
+---
+- name: Update All Packages
+  become: true
+  yum:
+    name: "*"
+    state: "latest"
+
+- name: Install packages and python modules
+  become: true
+  block:
+    - name: Install epel repo
+      yum:
+        name:  epel-release
+        state: present
+
+    - name: Install useful tools
+      yum:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ install_packages }}"
+
+    - name: Install pip packages
+      pip:
+        name: "{{ item }}"
+        executable: "pip3.4"
+      loop: "{{ install_pip_modules }}"
+
+- name: Install Terraform
+  include_tasks: terraform.yml
+  vars:
+    tf_version: "{{ item.version }}"
+    tf_url: "{{ item.url }}"
+  loop: "{{ terraform_downloads }}"
+
+- name: Set default Terraform version to {{ terraform_default_version }}
+  become: yes
+  copy:
+    remote_src: yes
+    src: /usr/local/bin/terraform-{{ terraform_default_version }}
+    dest: /usr/local/bin/terraform

@@ -1,0 +1,19 @@
+[global]
+workgroup = WORKGROUP
+security = user
+map to guest = bad user
+unix charset = utf-8
+dos charset = cp932
+ntlm auth = yes
+
+[hybris]
+path = /opt/hybris
+available = yes
+browsable = yes
+writable = yes
+read list = hybris
+write list = hybris
+guest ok = no
+directory mask = 0775
+force directory mode = 0775
+valid users = hybris

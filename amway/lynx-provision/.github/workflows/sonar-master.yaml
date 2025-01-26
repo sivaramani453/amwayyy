@@ -1,0 +1,43 @@
+# This is a basic workflow to help you get started with Actions
+name: Run Sonar check on master
+
+on:
+  workflow_dispatch:
+  #push:
+  #  branches:
+  #    - master
+
+env:
+  WORKDIR: CODEBASE
+
+jobs:
+  sonar-check:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout repo
+      env:
+        GIT_USER: EUJJZU8
+      run: |
+        git clone -b "${GITHUB_REF#refs/heads/}" \
+                     "https://$GIT_USER:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository}}" $WORKDIR
+
+    - name: Sonar check
+      env:
+        BRANCH: "${{ github.event.pull_request.head.ref }}"
+        SONAR_URL: "https://sonarqube-ent-eu.security.corp.amway.net"
+        SONAR_USER: "EPAMSecurityUser"
+        SONAR_PROJECT: "eia-lynx-provision"
+        SONAR_SCANNER_OPTS: "-Xmx512m"
+      run: |
+        cd $WORKDIR
+        sonar-scanner \
+          -Dsonar.projectKey=$SONAR_PROJECT \
+          -Dsonar.sources=. \
+          -Dsonar.host.url=$SONAR_URL \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+    - name: Clean up
+      if: ${{ always() }}
+      run: |
+        rm -vrf *

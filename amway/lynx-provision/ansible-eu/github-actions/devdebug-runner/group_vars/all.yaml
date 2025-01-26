@@ -1,0 +1,42 @@
+# Github runner
+runner_version: "2.278.0"
+runner_user: "github"
+runner_group: "github"
+github_owner: pymhd
+github_repository: actions-test
+github_token: "{{ lookup('env', 'GIT_TOKEN') }}"
+
+amazon_packages:
+  - "epel"
+            
+# Misc
+install_packages:
+  - jq
+  - git
+  - zip
+  - unzip
+  - wget
+  - bzip2
+  - python34
+  - python34-pip
+  - yum-utils
+
+install_pip_modules:
+  - pathlib2
+  - virtualenv
+  - awscli
+  - boto3
+
+terraform_downloads:
+  - url: https://releases.hashicorp.com/terraform/0.11.14/terraform_0.11.14_linux_amd64.zip
+    version: 11
+  - url: https://releases.hashicorp.com/terraform/0.12.31/terraform_0.12.31_linux_amd64.zip
+    version: 12
+  - url: https://releases.hashicorp.com/terraform/0.13.6/terraform_0.13.6_linux_amd64.zip
+    version: 13
+  - url: https://releases.hashicorp.com/terraform/0.14.10/terraform_0.14.10_linux_amd64.zip
+    version: 14
+  - url: https://releases.hashicorp.com/terraform/0.15.0/terraform_0.15.0_linux_amd64.zip
+    version: 15
+
+terraform_default_version: 11

@@ -1,0 +1,94 @@
+---
+- name: "Mount media"
+  mount:
+    path: "/opt/media"
+    src: "{{ groups.be2.0 }}:/opt/media"
+    fstype: "nfs4"
+    opts: "rsize=8192,wsize=8192"
+    state: "mounted"
+
+- name: "h-up: Set env_type"
+  lineinfile:
+    path: "/etc/default/h-tools"
+    regexp: '^env_type =*'
+    line: "env_type = \"{{ env_name }}_fe\""
+
+- name: "h-up: Set server_type"
+  lineinfile:
+    path: "/etc/default/h-tools"
+    regexp: '^server_type =*'
+    line: "server_type = \"{{ env_name }}_fe\""
+
+- name: "Filebeat: replace beat name"
+  replace:
+    path: "/etc/filebeat/filebeat-out.yml"
+    regexp: "^name:*"
+    replace: "#name:"
+
+- name: "Filebeat: insert beat name"
+  lineinfile:
+    path: "/etc/filebeat/filebeat-out.yml"
+    regexp: "^name:*"
+    insertafter: "^#name:*"
+    line: "name: \"{{ groups.fe2.0 }}\""
+
+- name: "Filebeat: restart service"
+  service:
+    name: "filebeat-pipeline"
+    state: "restarted"
+
+- name: "Install systemd service for storybook"
+  template:
+    src: storybook-hybris.service.j2
+    dest: /etc/systemd/system/storybook-hybris.service
+    owner: root
+    mode: 0644
+
+- name: "Enable storybook systemd service"
+  systemd:
+    name: storybook-hybris
+    enabled: True
+    daemon_reload: True
+
+- name: "Stream customizations: artifact storage ru URL"
+  replace:
+    path: "/etc/default/h-tools"
+    regexp: "{{ htools_artifact_storage }}"
+    replace: "{{ artifact_storage_ru }}"
+  when: env_customization == "ru"
+
+- name: "Zookeeper: set myid"
+  copy:
+    content: "2"
+    dest: "{{ data_dir }}/myid"
+  when: env_customization == "ru"
+
+- name: "Zookeeper: update fe1 ip in hosts"
+  replace:
+    path: "{{ zookeeper_dir }}/conf/zoo.cfg"
+    regexp: "127.0.0.1"
+    replace: "{{ groups.fe1.0 }}"
+  when: env_customization == "ru"
+
+- name: "Zookeeper: update fe2 ip in hosts"
+  replace:
+    path: "{{ zookeeper_dir }}/conf/zoo.cfg"
+    regexp: "127.0.0.2"
+    replace: "{{ groups.fe2.0 }}"
+  when: env_customization == "ru"
+
+- name: "Zookeeper: update be1 ip in hosts"
+  replace:
+    path: "{{ zookeeper_dir }}/conf/zoo.cfg"
+    regexp: "127.0.0.3"
+    replace: "{{ groups.be1.0 }}"
+  when: env_customization == "ru"
+
+- name: "Zookeeper: start and enable service"
+  become: True
+  service:
+    name: "zookeeper"
+    state: "started"
+    enabled: True
+  when: env_customization == "ru"
+

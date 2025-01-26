@@ -1,0 +1,70 @@
+---
+# Configure BE2 node.
+- hosts: be2
+  module_defaults:
+    package:
+      lock_timeout: 180
+  roles:
+   - role: '../../roles/be2-node-prepare'
+     when: (env_customization == "ru") or
+           (env_customization == "eu")
+   - role: '../../roles/external-ansible-sshd'
+
+# Configure BE2-PERF node.
+- hosts: be2
+  roles:
+   - role: '../../roles/be2-perf-node-prepare'
+     when: env_customization == "perf"
+
+# Configure BE1 node.
+- hosts: be1
+  module_defaults:
+    package:
+      lock_timeout: 180
+  roles:
+   - role: '../../roles/be1-node-prepare'
+     when: (env_customization == "ru") or
+           (env_customization == "eu")
+   - role: '../../roles/external-ansible-sshd'
+
+# Configure BE1-PERF node.
+- hosts: be1
+  roles:
+   - role: '../../roles/be1-perf-node-prepare'
+     when: env_customization == "perf"
+
+# Configure FE nodes.
+- hosts: fe1
+  roles:
+   - role: '../../roles/fe1-node-prepare'
+
+- hosts: fe2
+  roles:
+   - role: '../../roles/fe2-node-prepare'
+
+- hosts: fe3
+  roles:
+   - role: '../../roles/fe3-perf-node-prepare'
+     when: env_customization == "perf"
+
+- hosts: fe4
+  roles:
+   - role: '../../roles/fe4-perf-node-prepare'
+     when: env_customization == "perf"
+
+# Configure OF nodes (only for PERF)
+- hosts: of1
+  roles:
+   - role: '../../roles/of1-perf-node-prepare'
+     when: env_customization == "perf"
+
+- hosts: of2
+  roles:
+   - role: '../../roles/of2-perf-node-prepare'
+     when: env_customization == "perf"
+
+# Final solrcloud configure  
+- hosts: fe1:fe2:be1
+  roles:
+   - role: '../../roles/solrcloud-prepare'
+     when: env_customization == "ru"

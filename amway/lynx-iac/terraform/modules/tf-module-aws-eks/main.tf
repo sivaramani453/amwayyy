@@ -1,0 +1,51 @@
+data "aws_region" "current" {}
+
+data "aws_ami" "eks_ami" {
+  most_recent = true
+  name_regex  = "^amazon-eks-node-${var.cluster_version}-v[0-9]{8}$"
+  owners      = ["602401143452"]
+
+  filter {
+    name   = "name"
+    values = ["amazon-eks-node-${var.cluster_version}-*"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+module "eks" {
+  source                    = "github.com/terraform-aws-modules/terraform-aws-eks?ref=v4.0.0"
+  cluster_name              = "${var.project}-${var.environment}"
+  vpc_id                    = "${var.vpc_id}"
+  subnets                   = ["${var.private_subnets}", "${var.public_subnets}"]
+  cluster_enabled_log_types = "${var.cluster_enabled_log_types}"
+  cluster_version           = "${var.cluster_version}"
+  local_exec_interpreter    = "${var.local_exec_interpreter}"
+  map_accounts              = "${var.map_accounts}"
+  map_accounts_count        = "${var.map_accounts_count}"
+  map_roles                 = "${var.map_roles}"
+  map_roles_count           = "${var.map_roles_count}"
+  map_users                 = "${var.map_users}"
+  map_users_count           = "${var.map_users_count}"
+
+  worker_groups = [
+    {
+      asg_desired_capacity = "0"
+      asg_max_size         = "0"
+      asg_min_size         = "0"
+    },
+  ]
+
+  tags = {
+    project     = "${var.project}"
+    environment = "${var.environment}"
+  }
+}

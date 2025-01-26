@@ -1,0 +1,6 @@
+---
+hybris_db_user: hybris
+hybris_db_password: hybris
+hybris_db_name: hybris
+db_root_password: root
+

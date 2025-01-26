@@ -1,0 +1,19 @@
+config:
+  ## https://docs.fluentbit.io/manual/pipeline/inputs
+  inputs: |
+    [INPUT]
+        Name tail
+        Path /var/log/containers/*.log
+        multiline.parser docker, cri
+
+  ## https://docs.fluentbit.io/manual/pipeline/filters
+  outputs: |
+    [OUTPUT]
+        Name splunk
+        Match *
+        Host http-inputs-amway.splunkcloud.com
+        Port 443
+        Splunk_Token ${splunk_token}
+        Splunk_Send_Raw On
+        TLS On
+        TLS.Verify Off

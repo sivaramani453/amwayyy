@@ -1,0 +1,2 @@
+project = "selenoid"
+environment = "main"

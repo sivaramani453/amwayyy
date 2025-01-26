@@ -1,0 +1,65 @@
+---
+- name: Additional manipulations with binary files on frontend nodes ru envs
+  block:
+    - name: Remove storefront binaries destination
+      file:
+        path: "{{ storefront_files.eu.dest_dir if environment_name in eu_envs else storefront_files.ru.dest_dir}}"
+        state: absent
+
+    - name: Get files regions obj
+      set_fact:
+        front_region: "{{ storefront_files.eu.copy_files if environment_name in eu_envs else storefront_files.ru.copy_files }}"
+
+    - name: Get file list to copy
+      set_fact:
+        files_to_copy: "{{ front_region.dev if js_debug_enabled else front_region.prod }}"
+
+    - name: Copy files
+      copy:
+        force: yes
+        remote_src: yes
+        owner: hybris
+        src: "{{ item.src }}"
+        dest: "{{ item.dst }}"
+      loop: "{{ files_to_copy }}"
+      register: copy_files_result
+      ignore_errors: yes
+
+    - name: Notify users could not copy storefront files
+      include_tasks: notify_task.yaml
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Could not copy storefront files"
+      when: copy_files_result.failed is defined and copy_files_result.failed
+
+    - name: Now fail real
+      fail:
+        msg: Bye bye
+      when: copy_files_result.failed is defined and copy_files_result.failed
+
+    - name: Delete src dirs
+      file:
+        path: "{{ item.src }}"
+        state: absent
+      loop: "{{ files_to_copy }}"
+
+- name: npm tasks
+  block:
+    - name: Delete node modules
+      file:
+        path: "{{ storefront_files.eu.dest_dir if environment_name in eu_envs else storefront_files.ru.dest_dir}}/node_modules"
+        state: absent
+
+    - name: npm install modules
+      npm:
+        path: "{{ storefront_files.eu.dest_dir if environment_name in eu_envs else storefront_files.ru.dest_dir}}"
+      register: npm_install  
+  become: True
+  become_user: hybris
+
+- name: Start storybook service
+  systemd:
+    name: storybook-hybris
+    enabled: yes
+    state: started
+  when: npm_install.changed
+  

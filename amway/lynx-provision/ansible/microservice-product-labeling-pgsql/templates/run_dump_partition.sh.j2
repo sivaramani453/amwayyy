@@ -1,0 +1,4 @@
+#!/bin/bash
+
+export PGPASSWORD="{{ archive_pgsql_password }}"
+python3 /home/centos/dump_partition.py -v -c "host=127.0.0.1 dbname={{ docker_env_pgsql_database_name }} user={{ archive_pgsql_username }} password={{ archive_pgsql_password }}" --dump_username "{{ archive_pgsql_username }}" --dump_host "127.0.0.1" -d "{{ docker_env_pgsql_database_name }}" -n "{{ archive_pgsql_schema }}" -o "{{ archive_efs_mountpoint_dest }}"

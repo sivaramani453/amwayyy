@@ -1,0 +1,9 @@
+---
+- type: log
+  enabled: true
+  paths:
+    - /var/log/access*.log
+  fields:
+    logtype: access
+    index_name: apache
+  fields_under_root: true

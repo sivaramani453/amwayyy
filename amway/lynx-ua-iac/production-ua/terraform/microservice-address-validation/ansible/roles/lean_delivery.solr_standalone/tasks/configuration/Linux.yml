@@ -1,0 +1,72 @@
+---
+- name: Generate basic auth config
+  template:
+    src: security.json.j2
+    dest: '{{ solr_home }}/security.json'
+    owner: '{{ solr_user }}'
+    group: '{{ solr_group }}'
+    mode: 0640
+  become: True
+  when:
+    - solr_auth_configure
+    - solr_version is version('7.0.0', '>=')
+  notify:
+    - restart solr linux
+
+- name: Force all notified handlers
+  meta: flush_handlers
+
+- name: Wait for Solr is UP
+  uri:
+    url: '{{ solr_proto }}://{{ solr_host }}:{{ solr_port }}/solr'
+    status_code: 200
+    validate_certs: False
+    user: '{{ solr_default_auth_user }}'
+    password: '{{ solr_default_auth_pass }}'
+    force_basic_auth: True
+  register: solr_main_page
+  until: solr_main_page.status == 200
+  retries: 20
+  delay: 10
+  when:
+    - solr_auth_configure
+    - solr_version is version('7.0.0', '>=')
+    - solr_change_default_password
+
+- name: Create admin user via API
+  uri:
+    url: '{{ solr_proto }}://{{ solr_host }}:{{ solr_port }}/solr/admin/authentication'
+    method: POST
+    user: '{{ solr_default_auth_user }}'
+    password: '{{ solr_default_auth_pass }}'
+    validate_certs: False
+    force_basic_auth: True
+    headers:
+      Content-Type: 'application/json'
+    body_format: json
+    body: '{"set-user": {"{{ solr_auth_user }}": "{{ solr_auth_pass }}"} }'
+  when:
+    - solr_auth_configure
+    - solr_version is version('7.0.0', '>=')
+    - solr_change_default_password
+  notify:
+    - restart solr linux
+
+- name: Change default admin user password via API
+  uri:
+    url: '{{ solr_proto }}://{{ solr_host }}:{{ solr_port }}/solr/admin/authentication'
+    method: POST
+    user: '{{ solr_default_auth_user }}'
+    password: '{{ solr_default_auth_pass }}'
+    validate_certs: False
+    force_basic_auth: True
+    headers:
+      Content-Type: 'application/json'
+    body_format: json
+    body: '{"set-user": {"solr": "{{ solr_auth_pass }}"} }'
+  when:
+    - solr_auth_configure
+    - solr_version is version('7.0.0', '>=')
+    - solr_change_default_password
+  notify:
+    - restart solr linux

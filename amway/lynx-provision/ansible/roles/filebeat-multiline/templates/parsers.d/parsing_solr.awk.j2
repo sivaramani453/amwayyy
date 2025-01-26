@@ -1,0 +1,73 @@
+# This block is present only for debugging and testing puposes
+# Do not leave it uncommented while running in pipeline!
+#=============================================================
+# BEGIN{sourcelog = "source.log"}
+# {
+#     parsing_solr(sourcelog)
+# }
+# END{}
+#=============================================================
+
+function parsing_solr(sourcelog)
+{
+    clear_special_symbols()
+    split($0,msg,"\\] +| \\[")
+    component = msg[3]
+    core = msg[4]
+    split(msg[1],data,/-|\/|:|,|\.| /)
+    epoch = mktime(data[1]" "data[2]" "data[3]" "data[4]" "data[5]" "data[6])
+    if (epoch == -1) 
+        next
+    ts = strftime("%Y-%m-%dT%H:%M:%S", epoch ,1) "." data[7] "Z"
+    str_severity = data[8]
+    split(msg[2],datb,/:| /)
+    collection = datb[2]
+    shard = datb[4]
+    core_node = datb[6]
+    split(msg[5],a)
+    split(a[1],b,/=/)
+    webapp = b[2]
+    split(a[2],b,/=/)
+    path = b[2]
+    params = substr(a[3],9,length(a[3])-9)
+    split(a[4],b,/=/)
+    hits = b[2]
+    split(a[5],b,/=/)
+    status = b[2]
+    split(a[6],b,/=/)
+    qtime = b[2]
+
+    solr_fields(sourcelog)
+}
+
+function solr_fields(sourcelog)
+{
+  solr_field["QTime"] = qtime
+  solr_field["collection"] = collection
+  solr_field["component"] = component
+  solr_field["core"] = core
+  solr_field["sourcelog"] = sourcelog
+  solr_field["@timestamp"] = ts
+  solr_field["message"] = solr_message
+  solr_field["core_node"] = core_node
+  solr_field["hits"] = hits
+  solr_field["severity"] = str_severity
+  solr_field["shard"] = shard
+  solr_field["webapp"] = webapp
+  solr_field["path"] = path
+  solr_field["params"] = params
+  solr_field["status"] = status
+  solr_field["logtype"] = logtype[sourcelog]
+  solr_field["index"] = index_name[sourcelog]
+  print out_json(solr_field)
+}
+
+function solr_clean(sourcelog)
+{
+    for (i in solr_field)
+        delete solr_field[i]
+    delete logtype[sourcelog]
+}
+
+@include "{{ path.config }}/awk.d/out_json.awk"
+@include "{{ path.config }}/awk.d/clear_special_symbols.awk"

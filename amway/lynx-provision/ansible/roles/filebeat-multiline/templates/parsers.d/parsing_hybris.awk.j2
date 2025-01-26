@@ -1,0 +1,80 @@
+# This block is present only for debugging and testing puposes
+# Do not leave it uncommented while running in pipeline!
+#=============================================================
+# BEGIN{sourcelog="testlog.log"}
+# {
+#     parsing_hybris(sourcelog)
+# }
+# END{}
+#=============================================================
+
+function parsing_hybris(sourcelog)
+{
+    gsub(/^\x1B.+m/,"",$11)
+    clear_special_symbols()
+    split($0,msg,/\s+\|\s/)
+
+    if (msg[1] != "INFO")
+        process_multiline_buffer(msg[4],msg[1],msg[5],0,sourcelog)
+
+    if (msg[5]~/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [[:digit:]]+,/)
+        process_multiline_buffer(msg[4],msg[1],msg[5],1,sourcelog)
+
+    if (flag[sourcelog])
+    {
+        ind=index(msg[5],":")
+        severity[sourcelog]=toupper(substr(msg[5],1,ind-1))
+        if (severity[sourcelog]=="WARNING") severity[sourcelog]="WARN"
+            message[sourcelog]=message[sourcelog] "\\n" msg[5]
+        flag[sourcelog]=0
+        next
+    }
+
+    if (match(msg[5],/^(WARN|INFO|ERROR|SEVERE|DEBUG|TRACE)/,a)>0)
+        process_multiline_buffer(msg[4],a[1],msg[5],0,sourcelog)
+
+    if (sourcelog in message) 
+        message[sourcelog] = message[sourcelog] "\\n" msg[5]
+}
+
+function hybris_fields(sourcelog)
+{
+    hybris_field["@timestamp"] = timestamp[sourcelog]
+    hybris_field["severity"] = severity[sourcelog]
+    hybris_field["sourcelog"] = sourcelog
+    hybris_field["message"] = message[sourcelog]
+    hybris_field["logtype"] = logtype[sourcelog]
+    hybris_field["index"] = index_name[sourcelog]
+    print out_json(hybris_field)
+}
+
+function hybris_clean(sourcelog)
+{
+    for (i in hybris_field)
+        delete hybris_field[i]
+    delete timestamp[sourcelog]
+    delete severity[sourcelog]
+    delete message[sourcelog]
+    delete timestamp[sourcelog]
+    delete logtype[sourcelog]
+}
+
+function process_multiline_buffer(time,sever,messg,flg,srslog) 
+{
+    tst = convert_time(time)
+    if (tst != -1)
+    {
+        if (sourcelog in message)
+            out_multiline(sourcelog)
+        timestamp[srslog]=tst
+        severity[srslog]=toupper(sever)
+        message[srslog]=messg
+        flag[srslog]=flg
+        next
+    }
+}
+
+@include "{{ path.config }}/awk.d/out_multiline.awk"
+@include "{{ path.config }}/awk.d/convert_time.awk"
+@include "{{ path.config }}/awk.d/clear_special_symbols.awk"
+@include "{{ path.config }}/awk.d/out_json.awk"

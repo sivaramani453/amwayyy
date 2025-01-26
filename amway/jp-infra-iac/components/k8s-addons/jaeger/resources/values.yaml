@@ -1,0 +1,36 @@
+provisionDataStore:
+  cassandra: false
+storage:
+  type: elasticsearch
+  elasticsearch:
+    port: 443
+    scheme: https
+    host: ${elasticsearch_host}
+    user: ${elasticsearch_user}
+    password: ${elasticsearch_password}
+query:
+  basePath: /
+  ingress:
+    enabled: "true"
+    ingressClassName: "nginx"
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: ${domain_name}.
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+      service.beta.kubernetes.io/aws-load-balancer-ip-address-type: "ipv4"
+      service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "ssl"
+      service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+      service.beta.kubernetes.io/aws-load-balancer-source-ranges: "10.0.0.0/8"
+    hosts:
+      - ${domain_name}
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 256m
+      memory: 128Mi
+agent:
+  enabled: false

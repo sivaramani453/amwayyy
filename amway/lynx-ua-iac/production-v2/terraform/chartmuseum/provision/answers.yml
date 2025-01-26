@@ -1,0 +1,29 @@
+---
+  defaultImage: false
+  image: 
+    repository: "chartmuseum/chartmuseum"
+    tag: "v0.7.1"
+  env: 
+    open: 
+      STORAGE: "amazon"
+      STORAGE_AMAZON_BUCKET: "amway-prod-ru-chartmuseum-bucket"
+      STORAGE_AMAZON_REGION: "eu-central-1"
+      CHART_URL: "https://chartmuseum.ru.eia.amway.net"
+      SHOW_ADVANCED: true
+      DEPTH: "0"
+      ALLOW_OVERWRITE: false
+      AUTH_ANONYMOUS_GET: true
+      DISABLE_METRICS: true
+    secret: 
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      BASIC_AUTH_USER: ""
+      BASIC_AUTH_PASS: ""
+  persistence: 
+    enabled: false
+  ingress: 
+    enabled: true
+    hosts: 
+      - "chartmuseum.ru.eia.amway.net"
+  service: 
+    type: "NodePort"

@@ -1,0 +1,180 @@
+---
+- name: Install Splunk Universal Forwarder
+  hosts: all
+  tasks:
+  - name: Install packages to work with s3
+    block:
+      - name: Enable EPEL repository
+        package:
+         name: "{{ epel_url_rpm }}"
+         state: present
+
+      - name: Install python2-pip
+        package:
+         name: python2-pip
+         state: present
+
+      - name: Install boto packages
+        pip:
+         name: "{{ item }}"
+        loop: "{{ boto_packages }}"
+
+    become: True
+    tags:
+     - boto-s3       
+
+  - name: Install Splunk package
+    block:
+      - name: Add splunk group
+        group:
+          name: "{{ splunk_group }}"
+          gid: 981
+
+      - name: Add splunk user
+        user:
+          name: "{{ splunk_user }}"
+          uid: 981
+          group: "{{ splunk_group }}"
+          groups: solr
+          append: yes
+          createhome: no
+          home: "{{ splunk_home }}"
+          comment: "Splunk Server"
+      
+      - name: Enable access to solr logs for splunk user
+        file:
+          path: "/var/solr"
+          mode: "0750"     
+
+      - name: Download splunk binary from s3
+        aws_s3:
+          bucket: "{{ splunk_s3_bucket }}"
+          object: "{{ splunk_s3_binary_path }}"
+          aws_access_key: "{{ splunk_s3_aws_access_key }}"
+          aws_secret_key: "{{ splunk_s3_aws_secret_key }}"
+          dest: "{{ splunk_download_path }}/{{ splunk_s3_binary_path | basename }}"
+          mode: get
+          overwrite: different
+          ignore_nonexistent_bucket: true
+        retries: 5
+        delay: 2
+
+      - name: Set downloaded splunk binary package var
+        set_fact:
+          splunk_binary_downloaded: "{{ splunk_download_path }}/{{ splunk_s3_binary_path | basename }}"  
+      - name: Unpack splunk binary package
+        unarchive:
+          src: "{{ splunk_binary_downloaded }}"
+          dest: "{{ splunk_root }}"
+          owner: "{{ splunk_user }}"
+          group: "{{ splunk_group }}"
+          remote_src: "yes"
+
+      - name: Download splunk cloud config from s3
+        aws_s3:
+          bucket: "{{ splunk_s3_bucket }}"
+          object: "{{ splunk_s3_uf_config_path }}"
+          aws_access_key: "{{ splunk_s3_aws_access_key }}"
+          aws_secret_key: "{{ splunk_s3_aws_secret_key }}"
+          dest: "{{ splunk_download_path }}/{{ splunk_s3_uf_config_path | basename }}"
+          mode: get
+          overwrite: different
+          ignore_nonexistent_bucket: true
+        retries: 5
+        delay: 2
+
+      - name: Set downloaded splunk cloud config package var
+        set_fact:
+          splunk_cloud_config_downloaded: "{{ splunk_download_path }}/{{ splunk_s3_uf_config_path | basename }}"   
+
+      - name: Unpack configuration for Splunk Cloud
+        unarchive:
+          src: "{{ splunk_cloud_config_downloaded }}"
+          dest: "{{ splunk_config_dir }}"
+          owner: "{{ splunk_user }}"
+          group: "{{ splunk_group }}"
+          remote_src: "yes"
+
+    become: True
+    tags:
+     - splunk-package
+
+  - name: Enable splunk service
+    block:
+      - name: Enable service via boot-start
+        command: "{{ splunk_exec }} enable boot-start -systemd-managed 1 -user {{ splunk_user }} --accept-license --answer-yes --no-prompt"
+
+      - name: Reload daemons via systemctl
+        systemd:
+          daemon-reload: yes
+          name: SplunkForwarder.service
+          enabled: true
+
+      - name: Start service via systemctl
+        systemd:
+          name: SplunkForwarder.service
+          state: started
+
+    become: True
+    tags:
+     - splunk-service
+
+  - name: Set user seed
+    block:
+      - name: "Hash the password"
+        command: "{{ splunk_exec }} hash-passwd {{ splunk_admin_password }}"
+        register: hashed_pwd
+        changed_when: hashed_pwd.rc == 0
+        no_log: "{{ hide_password }}"
+
+      - name: "Generate user-seed.conf"
+        ini_file:
+          owner: "{{ splunk_user }}"
+          group: "{{ splunk_group }}"
+          dest: "{{ splunk_home }}/etc/system/local/user-seed.conf"
+          section: user_info
+          option: "{{ item.opt }}"
+          value: "{{ item.val }}"
+        with_items:
+          - { opt: 'USERNAME', val: '{{ splunk_admin_user }}' }
+          - { opt: 'HASHED_PASSWORD', val: '{{ hashed_pwd.stdout }}' }
+        loop_control:
+          label: "{{ item.opt }}"
+        no_log: "{{ hide_password }}"
+
+    become: True
+    become_user: "{{ splunk_user }}"
+    tags:
+       - splunk-admin-passwd
+
+  - name: Restart splunk
+    systemd:
+      name: SplunkForwarder.service
+      state: restarted
+    become: True
+
+  - name: Add Splunk object to monitoring
+    command: "{{ splunk_exec }} add {{ item }} -auth {{ splunk_admin_user }}:{{ splunk_admin_password }}"
+    with_items: "{{ splunk_add }}"
+    when: splunk_add is defined
+    register: task_result
+    until: task_result.rc == 0 or "already exists" in task_result.stderr
+    changed_when: task_result.rc == 0
+    failed_when:
+      - task_result.rc != 0
+      - "'already exists' not in task_result.stderr"
+    retries: 3
+    delay: 2
+    ignore_errors: true
+    no_log: "{{ hide_password }}"
+    become: "True"
+    become_user: "{{ splunk_user }}"
+    tags:
+       - splunk-monitorig-objects
+
+  - name: Restart splunk
+    systemd:
+      name: SplunkForwarder.service
+      state: restarted
+    become: True
+

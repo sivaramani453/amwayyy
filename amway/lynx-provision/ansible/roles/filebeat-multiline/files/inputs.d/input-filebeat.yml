@@ -1,0 +1,9 @@
+---
+- type: log
+  enabled: true
+  paths:
+    - /var/log/filebeat/filebeat-in.log
+  fields:
+    logtype: filebeat_input
+    index_name: filebeat_input
+  fields_under_root: true

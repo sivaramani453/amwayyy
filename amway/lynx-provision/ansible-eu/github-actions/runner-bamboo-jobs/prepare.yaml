@@ -1,0 +1,60 @@
+---
+- name: Update and Install required packages
+  block:
+    - name: Perform yum update
+      yum:
+        name: "*"
+        state: "latest"
+
+    - name: install epel release
+      yum:
+        name: "epel-release" 
+        state: "latest"
+
+    - name: Install additional system packages
+      yum:
+        name: "{{ system_packages }}" 
+        state: "latest"
+
+    - name: Install necessary Python
+      pip:
+        name: "{{ item }}"
+        executable: pip3
+      loop: "{{ python_packages }}"   
+  become: True
+
+- name: install External Packages by Template
+  block:
+    
+    - name: Create directory for mysql
+      file:
+        path: /opt/media/mysql
+        state: directory
+        mode: '0755'
+        recurse: yes
+    
+    - name: Create directories
+      file:
+        path: "{{ item.dir }}{{ item.exec }}{{ item.version }}"
+        state: directory
+        mode: '0755'
+        recurse: yes
+      with_items: "{{ package_distribution }}"
+
+    - name: Download and unzip packages
+      unarchive:
+        src: "{{ item.url }}"
+        dest: "{{ item.dir }}{{ item.exec }}{{ item.version }}"
+        remote_src: yes
+      with_items: "{{ package_distribution }}"
+
+    - name: Link packages and versions to /usr/bin
+      file:
+        src: "{{ item.dir }}{{ item.exec }}{{ item.version }}/{{ item.exec }}"
+        dest: "/usr/bin/{{ item.exec }}{{ item.version }}"
+        state: link
+        owner: root
+        group: root
+      with_items: "{{ package_distribution }}"
+  become: True
+

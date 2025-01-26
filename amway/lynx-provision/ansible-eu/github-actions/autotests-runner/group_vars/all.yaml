@@ -1,0 +1,39 @@
+# Github runner
+runner_version: "2.285.1"
+runner_user: "github"
+runner_group: "github"
+github_owner: pymhd
+github_repository: actions-test
+github_token: "{{ lookup('env', 'GIT_TOKEN') }}"
+vnc_user: github
+
+# Java
+java_package: jdk
+java_major_version: 11
+java_tarball_install: true
+transport: web
+transport_web: https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz
+
+# Maven
+maven_version: "3.6.3"
+
+amazon_packages:
+  - "epel"
+
+# Misc
+install_packages:
+  - jq
+  - git
+  - zip
+  - unzip
+  - wget
+  - bzip2
+  - python3
+  - python3-pip
+#  - libselinux-python
+
+install_pip_modules:
+  - pathlib2
+  - virtualenv
+  - awscli
+  - selinux

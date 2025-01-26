@@ -1,0 +1,4 @@
+[client]
+user = {{ mysql_zabbix_agent_user }}
+password = {{ lookup('password', '/tmp/agent-passwordfile') }}
+host = localhost

@@ -1,0 +1,48 @@
+---
+- name: Update All Packages
+  become: true
+  yum:
+    name: "*"
+    state: "latest"
+
+- name: Install packages and python modules
+  become: true
+  block:
+
+    - name: Install amazon-linux-extras packages
+      shell: "amazon-linux-extras install {{ item }}"
+      loop: "{{ amazon_packages }}"
+
+    - name: Install useful tools
+      yum:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ install_packages }}"
+
+    - name: Install pip packages
+      pip:
+        name: "{{ item }}"
+        executable: "pip3"
+      loop: "{{ install_pip_modules }}"
+      
+    - name: Add repo cfg for Vault
+      shell: yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+
+    - name: Install Vault
+      yum:
+        name: vault
+        state: present
+
+- name: Install Terraform
+  include_tasks: terraform.yaml
+  vars:
+    tf_version: "{{ item.version }}"
+    tf_url: "{{ item.url }}"
+  loop: "{{ terraform_downloads }}"
+
+- name: Set default Terraform version to {{ terraform_default_version }}
+  become: yes
+  copy:
+    remote_src: yes
+    src: /usr/local/bin/terraform-{{ terraform_default_version }}
+    dest: /usr/local/bin/terraform

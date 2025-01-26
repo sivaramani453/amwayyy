@@ -1,0 +1,17 @@
+[Unit]
+Description="Self Hosted Github Runner"
+Requires=cloud-final.service
+After=cloud-final.service
+
+[Service]
+Type=simple
+User={{ runner_user }}
+Environment=AWS_DEFAULT_REGION=eu-central-1
+WorkingDirectory=/home/{{ runner_user }}/{{ runner_workdir }}
+ExecStart=/home/{{ runner_user }}/{{ runner_workdir }}/install.sh
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=5min
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,18 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: False
+  tasks:
+    - name: Install python for Ansible
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal python-zipstream)
+      become: True
+      changed_when: False
+
+- name: Install ca- roles on target host
+  hosts:
+    - filebeat-multiline
+  vars:
+    CA_GROUP: filebeat-multiline
+  roles:
+    - ca-root
+    - ca-cert

@@ -1,0 +1,159 @@
+---
+- name: Update solr nodes  ip addresses in database
+  hosts: be2
+
+  roles:
+    - role: "../roles/deployment/db-prepare"
+      vars:
+        fix_solr_ip: True
+        fe1_ip_address: "{{ groups['fe1'][0] }}"
+        fe2_ip_address: "{{ groups['fe2'][0] }}"
+        be1_ip_address: "{{ groups['be1'][0] }}"
+      when:
+        - environment_name in eu_envs
+
+
+- name: Prepare solr nodes for work.
+  hosts: solr_nodes
+
+  roles:
+    - role: "../roles/deployment/solr-node-prepare"
+      vars:
+        solr_config_zip_address: "{{ artifactory_storage_url }}/repository/\
+                                  {{ 'aweu-eia' if environment_name in eu_envs else 'aweu-eia-ru' if environment_name in ru_envs else 'aweu-eia-in'}}/\
+                                  {{ lookup('env', 'DEPLOY_VERSION') }}/hybrisServer-Config.zip"
+
+
+- name: Deploy hybris artifacts using open source ldi role
+  hosts: all
+
+  roles:
+    - role: "../roles/deployment/lean_delivery.hybris_deploy_artifacts"
+      vars:
+        hda_hybris_start: False
+        hda_artifacts_deploy_version:  "{{ lookup('env', 'DEPLOY_VERSION') }}"
+
+  post_tasks:
+    - name: Modify webpack local property
+      lineinfile:
+        path: "/opt/hybris/config/local.properties"
+        regexp: '^webpack.build.profile=.*'
+        line: "webpack.build.profile={{ 'dev' if js_debug_enabled else 'prod'}}"
+
+    - name: Disable extensions
+      replace:
+        path: "{{ local_extensions_to_disable_path }}"
+        regexp: '<extension name="{{ item }}" />'
+        replace: '<!--<extension name="{{ item }}" />-->'
+      loop: "{{ local_extensions_to_disable.eu if environment_name in eu_envs else local_extensions_to_disable.ru }}"
+
+
+- name: Copy storefront config and binaries for ru envs on frontend nodes
+  hosts: fe1:fe2
+
+  tasks:
+    - name: "Move desired files to apropriate dirs"
+      include_tasks: "storefront.yaml"
+
+- name: Make image-magick executable
+  hosts: be1:be2
+  tasks:
+    - name: "Set u+x on magick binary file"
+      file:
+        path: /opt/hybris/config/image-magick_assets/magick
+        owner: hybris
+        group: hybris
+        mode: 0744
+      when:
+        - environment_name in eu_envs
+      ignore_errors: yes
+
+- name: This is actually deployment process. Ant update and database adjustments
+  hosts: be1
+  tags: be-prepare
+  pre_tasks:
+    - name: "Ant updatesytem"
+      become: True
+      become_user: hybris
+      shell: "source ./setantenv.sh; \
+              ant updatesystem \
+              -Dde.hybris.platform.ant.production.skip.build=true \
+              -Dde.hybris.platform.ant.production.skip.server=true \
+              -DconfigFile={{ ant_config_file.eu if environment_name in eu_envs else ant_config_file.ru }}"
+      args:
+        chdir: /opt/hybris/bin/platform
+      changed_when: True
+      register: ant_updatesystem
+      ignore_errors: yes
+      when: ant_update
+
+    - name: Log ant cmd output
+      debug:
+        msg: "{{ ant_updatesystem.stdout }}"
+      when: ant_updatesystem.changed
+
+    - name: Notify users about failed deployment
+      include_tasks: notify_task.yaml
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Ant updatesystem failed"
+      when: ant_updatesystem.failed is defined and ant_updatesystem.failed
+
+    - name: Now fail real
+      fail:
+        msg: "Bye bye"
+      when: ant_updatesystem.failed is defined and ant_updatesystem.failed
+
+  roles:
+    - role: "../roles/deployment/db-prepare"
+      vars:
+        truncate_solr_ip: True
+        mysql_hybris_host: "{{ groups['be2'][0] }}"
+      when:
+        - environment_name in ru_envs
+
+  post_tasks:
+    - name: "Ant ImportImpex"
+      become: True
+      become_user: hybris
+      shell: "source ./setantenv.sh; ant importImpex -Dresource={{ ant_solr_impex.ru if environment_name in ru_envs else ant_solr_impex.eu }}"
+      args:
+        chdir: /opt/hybris/bin/platform
+      when:
+        - environment_name in ru_envs
+      register: import_impex
+      ignore_errors: yes
+
+    - name: Notify users about failed deployment
+      include_tasks: notify_task.yaml
+      vars:
+        notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} failed. Could not import solr impex"
+      when: import_impex.failed is defined and import_impex.failed
+
+    - name: Now fail real
+      fail:
+        msg: "Bye bye"
+      when: import_impex.failed is defined and import_impex.failed
+
+- name: Mount NFS hotfolder
+  hosts: be1
+
+  roles:
+    - role: "../roles/deployment/hotfolder-prepare"
+      vars:
+        hotfolder_path: "{{ lookup('env', 'HOTFOLDER_PATH') }}"
+
+
+- name: Start hybris and ensure it is running
+  hosts: all
+
+  roles:
+    - role: "../roles/deployment/start-hybris"
+
+
+- name: Add date and Hybris version to database
+  hosts: be2
+
+  roles:
+    - role: "../roles/deployment/db-prepare"
+      vars:
+        add_date_and_version: True

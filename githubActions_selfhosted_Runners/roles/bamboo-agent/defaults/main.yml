@@ -1,0 +1,31 @@
+---
+install_jdk: False
+openjdk_version: "1.8.0"
+
+bamboo_agent_remote: False
+bamboo_agent_spot: True
+
+bamboo_master_version: ""
+bamboo_master_fqdn: ""
+bamboo_master_https: ""
+bamboo_master_port: ""
+bamboo_master_user: bamboo
+
+bamboo_agent_user: "bambooagent"
+bamboo_agent_uid: 1001
+bamboo_agent_application_folder: "/home/{{ bamboo_agent_user }}"
+bamboo_agent_data_folder: "/home/{{ bamboo_agent_user }}/bamboo-agent-home"
+bamboo_agent_jvm_memory: "768m"
+bamboo_java_home: ""
+bamboo_agent_start_timeout: "300"
+bamboo_agent_jvm_xms: "512"
+bamboo_agent_jvm_xmx: "1024"
+bamboo_agent_timezone: "UTC"
+
+bamboo_agent_npmrc: ""
+bamboo_agent_maven_settings: ""
+
+bamboo_agent_capabilities: []
+
+aws_iam_keys: False
+aws_meta_url: "http://169.254.169.254/latest/meta-data/instance-id"

@@ -1,0 +1,76 @@
+---
+- name: Install repository and packages
+  block:
+    - name: Enable EPEL repository
+      yum:
+       name: epel-release
+       state: "present"
+    
+    - name: Install tools
+      yum:
+       name:
+        - python3 
+        - net-tools 
+        - vim
+        - joe
+        - zip
+        - unzip
+        - wget
+        - curl  
+        - bzip2
+        - jq
+        - git
+       state: "present"
+  become: True
+  tags:
+    - epel-package
+
+- name: Create gitconfig
+  template: 
+    src: ".gitconfig.j2"
+    dest: "/home/{{ bamboo_agent_user }}/.gitconfig"
+    owner:  "{{ bamboo_agent_user }}"
+    group: "{{ bamboo_agent_user }}"
+  become: True
+  become_user: "{{ bamboo_agent_user }}"  
+
+- name: Configurate se-tools and sudo rules
+  block:
+    - name: Create sudo rule
+      template: 
+        src: "10-bamboo-user.j2"
+        dest: "/etc/sudoers.d/10-{{ bamboo_agent_user }}-user"
+        mode: "440"
+        owner: "root"
+        group: "root"
+
+    - name: Create directory for se-tools
+      file:
+        path: "/opt/se-tools"
+        state: "directory"
+ 
+    - name: Add h-at scripts
+      template: 
+        src: "h-at.py.j2"
+        dest: "/opt/se-tools/h-at.py"
+        owner: "root"
+        group: "root"
+        mode: '755'
+
+    - name: Create directory for junit_xml_output lib 
+      file:
+        path: "/opt/se-tools/junit_xml_output"
+        owner: "root"
+        group: "root"
+        state: "directory"
+
+    - name: Add junit_xml_output lib
+      template: 
+        src: "__init__.py.j2"
+        dest: "/opt/se-tools/junit_xml_output/__init__.py"
+        owner: "root"
+        group: "root"
+        mode: '755'
+  become: True
+  tags:
+    - se-tools  

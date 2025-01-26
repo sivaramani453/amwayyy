@@ -1,0 +1,106 @@
+---
+- name: Install WM and VNC
+  block:
+    - name: Install Xserver
+      yum:
+        name: "{{ item }}"
+        state: "present"
+      loop:
+        - xorg-x11-server-Xorg
+        - xorg-x11-xauth
+        - xorg-x11-utils
+
+    - name: Install Openbox WM
+      yum:
+        name: openbox
+        state: "present"    
+
+    - name: Install TigerVNC
+      yum:
+        name: "{{ item }}"
+        state: "present"
+      loop:
+        - tigervnc-server
+        - tigervnc-server-module
+  become: true
+  tags:
+     - xserver-vm 
+
+- name: Creates TigerVNC cfg dir
+  file:
+    path: /etc/tigervnc
+    state: directory
+  become: true
+
+- name: Creates TigerVNC cfg file
+  file:
+    path: /etc/tigervnc/vncserver.users
+    state: touch
+  become: true
+
+- name: "Check how dir structure looks like"
+  become: True
+  shell: ls /etc/tigervnc
+  register: ps
+
+- debug: var=ps.stdout_lines
+
+- name: "Added {{ vnc_user }} to /etc/tigervnc/vncserver.users"
+  lineinfile:
+    path: /etc/tigervnc/vncserver.users
+    line: ":1={{ vnc_user }}"
+  become: true
+  tags:
+     - vnc-config  
+
+- name: Prepare VNC configuration
+  block:
+    - name: "Create .vnc directory in {{ vnc_user }} home directory'"
+      file:
+        path: "/home/{{ vnc_user }}/.vnc"
+        state: "directory"
+        owner: "{{ vnc_user }}"
+        group: "{{ vnc_group }}"
+        mode: 0755
+
+    - name: Render default VNC config
+      template:
+        src: "config.j2"
+        dest: "/home/{{ vnc_user }}/.vnc/config"
+        owner: "{{ vnc_user }}"
+        group: "{{ vnc_group }}"
+        mode: 0644
+    
+    - name: Create VNC password
+      shell: |
+        set -o pipefail
+        echo {{ vnc_password }} | vncpasswd -f > /home/{{ vnc_user }}/.vnc/passwd
+      args:
+        chdir: "/home/{{ vnc_user }}/.vnc"
+        creates: "/home/{{ vnc_user }}/.vnc/passwd"
+        executable: /bin/bash  
+
+    - name: Set permissions for VNC passwd file
+      file:
+        path: "/home/{{ vnc_user }}/.vnc/passwd"
+        owner: "{{ vnc_user }}"
+        group: "{{ vnc_group }}"
+        mode: 0600
+        
+  become: True
+  become_user: "{{ vnc_user }}"
+  tags:
+    - vnc-config
+
+- name: Enable VNC systemd service
+  block:
+    - name: Render VNC service config
+      systemd:
+        name: "vncserver@:1.service" 
+        enabled: True
+        daemon-reload: yes
+        state: stopped  
+
+  become: True
+  tags:
+    - vnc-service

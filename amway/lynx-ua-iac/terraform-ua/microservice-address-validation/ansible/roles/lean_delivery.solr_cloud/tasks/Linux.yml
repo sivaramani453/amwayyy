@@ -1,0 +1,92 @@
+---
+- name: Set zookeeper hosts
+  set_fact:
+    zk_hosts: '{{ zk_hosts }} + [ "{{ host }}:{{ zk_client_port }}" ]'
+  loop: '{{ zk_hosts_list }}'
+  loop_control:
+    loop_var: host
+  run_once: true
+
+- name: Replace zookeeper configuration
+  lineinfile:
+    path: '{{ solr_insh_default }}'
+    regexp: '{{ zk_insh_config.zk_regexp }}'
+    line: '{{ zk_insh_config.zk_line }}'
+  loop:
+    - zk_regexp: '^ZK_HOST=(.*)'
+      zk_line: 'ZK_HOST="{{ zk_hosts | join(",") }}"'
+    - zk_regexp: '^SOLR_HOST=(.*)'
+      zk_line: 'SOLR_HOST="{{ solr_host_naming }}"'
+  loop_control:
+    loop_var: zk_insh_config
+  become: true
+  when:
+    - zk_hosts | length
+  notify:
+    - restart Solr Linux
+
+- name: 'Set zookeeper communication to {{ solr_ssl_enabled }}'
+  command: >-
+    {{ solr_dest_path }}/server/scripts/cloud-scripts/zkcli.sh
+    -zkhost {{ zk_hosts[0] }}
+    -cmd clusterprop
+    -name urlScheme
+    -val {{ solr_ssl_enabled }}
+  args:
+    removes: '{{ solr_dest_path }}/server/scripts/cloud-scripts/zkcli.sh'
+  run_once: true
+  changed_when: false
+
+- name: Set configset list
+  find:
+    paths: '{{ solr_configset_path }}'
+    file_type: directory
+  register: configset_output
+  run_once: true
+  become: true
+  when:
+    - auto_populate_configset_list
+    - zk_hosts | length
+
+- name: Populate configset list
+  set_fact:
+    configset_list: >-
+      {{ configset_output.files | map(attribute='path') | list }}
+  when:
+    - auto_populate_configset_list
+    - zk_hosts | length
+
+- name: debug configset_list
+  debug:
+    var: configset_list
+
+- name: debug configset_output
+  debug:
+    var: configset_output
+
+#{{ solr_dest_path }}/bin/solr zk upconfig -n {{ solr_conf_set }}
+- name: Solr Cloud upload config
+  command: >-
+    {{ solr_dest_path }}/server/scripts/cloud-scripts/zkcli.sh
+    -cmd upconfig -n {{ solr_conf_set }}
+    -confdir '{{ solr_configset_path }}/{{ solr_conf_set | basename }}/conf'
+  environment:
+    SOLR_ENV: '{{ solr_insh_default }}'
+    SOLR_INCLUDE: '{{ solr_insh_default }}'
+  changed_when: false
+  loop: '{{ configset_list }}'
+  loop_control:
+    loop_var: solr_conf_set
+  run_once: true
+  when:
+    - zk_hosts | length
+    - configset_list | length
+
+- name: Start service
+  service:
+    name: '{{ solr_service_name }}'
+    state: started
+    enabled: true
+  become: true
+  when:
+    - solr_service_start

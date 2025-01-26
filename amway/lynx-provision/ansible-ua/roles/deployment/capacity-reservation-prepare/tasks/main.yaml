@@ -1,0 +1,32 @@
+---
+- name: Run capacity-reservation assignment script
+  script: prepare.py --capacity-reservation-id {{ capacity_reservation_id }} \
+                     --instance-ids {{ hostvars[groups["be1"][0]].instance_id }} \
+                     {{ hostvars[groups["be2"][0]].instance_id }} \
+                     {{ hostvars[groups["fe1"][0]].instance_id }} \
+                     {{ hostvars[groups["fe2"][0]].instance_id }}
+  ignore_errors: yes
+  register: result
+
+- name: Notify if capacity reservation failed because of non critical error
+  include_tasks: notify.yaml
+  vars:
+    skype_channel: "{{ devops_chat_channel_id }}"
+    notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} could not assign capacity reservation: {{ result.stdout }}"
+  when:
+    result.rc == 11
+
+- name: Notify if capacity reservation failed because of critical error
+  include_tasks: notify-duo.yaml
+  vars:
+    notification_channel: "{{ teams_bot_channel.build_status if environment_name in eu_envs else skype_general_channel.ru }}"
+    notification_message: "{{ hybris_deploy_version }} deploy on {{ environment_name }} \
+                           could not assign capacity reservation and deployment is FAILED: {{ result.stdout }}"
+  when:
+    - result.rc == 1
+
+- name: Fail deployment
+  fail:
+    msg: Could not continue with deployment bc of capacity reservation step failed on crucial step.
+  when:
+    - result.rc == 1

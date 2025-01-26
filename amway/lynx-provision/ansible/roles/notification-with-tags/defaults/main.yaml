@@ -1,0 +1,17 @@
+# Notifications teams
+teams_bot_url: "https://epam.webhook.office.com/webhookb2/f96ab52f-f6a2-46f6-9063-6fd2bde0ce30@b41b72d0-4e9f-4c26-8a69-f949f367c91d/IncomingWebhook/"
+teams_bot_channel:
+  build_status: "build_status_channel"
+teams_usernames: 
+- name: "Belek Eraliev"
+  email: "belek_eraliev@epam.com"
+- name: "Aleksey Iaroslavkin"
+  email: "aleksey_iaroslavkin@epam.com"
+- name: "Pavel Shebarshin"
+  email: "pavel_shebarshin@epam.com"
+- name: "Roman Rodionov"
+  email: "roman_rodionov@epam.com"
+- name: "Semyon Komyagin"
+  email: "semyon_komyagin@epam.com"
+- name: "Anton Chaika"
+  email: "anton_chaika@epam.com"

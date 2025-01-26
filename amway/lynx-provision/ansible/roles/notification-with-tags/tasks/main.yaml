@@ -1,0 +1,15 @@
+---
+- name: Notify error in eu envs
+  uri:
+    method: POST
+    body_format: json
+    body: "{{ lookup('template', './template.j2') }}"
+    status_code: 200
+    timeout: 30
+    url: "{{ teams_bot_url }}/{{ teams_bot_channel.build_status }}"
+    validate_certs: no
+  ignore_errors: true
+  run_once: True
+
+# - debug:
+#     msg: "{{ lookup('template', './template.j2') }}"

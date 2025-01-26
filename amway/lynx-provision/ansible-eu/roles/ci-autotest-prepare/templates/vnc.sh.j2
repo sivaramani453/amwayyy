@@ -1,0 +1,7 @@
+#!/bin/bash 
+
+rm -f /home/{{ vnc_user }}/.vnc/*.pid
+
+systemctl daemon-reload
+systemctl restart vncserver*
+

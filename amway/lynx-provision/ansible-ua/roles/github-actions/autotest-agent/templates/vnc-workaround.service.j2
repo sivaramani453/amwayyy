@@ -1,0 +1,11 @@
+[Unit]
+After=vncserver@.service
+Description=VNC Server Restart
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/scripts/vnc.sh
+
+[Install]
+WantedBy=multi-user.target

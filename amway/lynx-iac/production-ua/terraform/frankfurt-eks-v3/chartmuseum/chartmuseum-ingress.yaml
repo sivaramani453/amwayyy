@@ -1,0 +1,24 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: chartmuseum-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: "letsencrypt"
+spec:
+  tls:
+  - hosts:
+    - chartmuseum3.ru.eia.amway.net
+    secretName: chartmuseum3-secret
+  rules:
+  - host: chartmuseum3.ru.eia.amway.net
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: chartmuseum-2-1614714751-chartmuseum
+            servicePort: 8080

@@ -1,0 +1,64 @@
+---
+- name: "Prepare New Database"
+  block:
+    - name: "Drop zabbix database"
+      mysql_db:
+        login_host: "{{ mysql_server_address }}"
+        login_user: "{{ mysql_master_username }}"
+        login_password: "{{ mysql_master_password }}"
+        name: "{{ mysql_zabbix_database }}"
+        state: absent
+
+    - name: "Create zabbix Database"
+      mysql_db:
+        login_host: "{{ mysql_server_address }}"
+        login_user: "{{ mysql_master_username }}"
+        login_password: "{{ mysql_master_password }}"
+        name: "{{ mysql_zabbix_database }}"
+        state: present
+
+    - name: "Create zabbix user"
+      mysql_user:
+        login_host: "{{ mysql_server_address }}"
+        login_user: "{{ mysql_master_username }}"
+        login_password: "{{ mysql_master_password }}"
+        name: "{{ mysql_zabbix_username }}"
+        password: "{{ mysql_zabbix_password }}"
+        priv: '{{ mysql_zabbix_database }}.*:ALL'
+      when:
+        - mysql_zabbix_username != mysql_master_username
+
+    - name: "Find sql dump file"
+      find:
+        path: /usr/share/doc
+        recurse: yes
+        patterns: 'create.sql.gz'
+      register: zabbix_initial_db
+
+    - name: Import zabbix database
+      mysql_db:
+        login_host: "{{ mysql_server_address }}"
+        login_user: "{{ mysql_master_username }}"
+        login_password: "{{ mysql_master_password }}"
+        name: "{{ mysql_zabbix_database }}"
+        state: import
+        target: "{{ zabbix_initial_db.files[0].path }}"
+  when: mysql_new_installation
+  tags:
+    - db
+
+- name: "Adjust Existing Database"
+  block:
+    - name: "Create/Update zabbix user"
+      mysql_user:
+        login_host: "{{ mysql_server_address }}"
+        login_user: "{{ mysql_master_username }}"
+        login_password: "{{ mysql_master_password }}"
+        name: "{{ mysql_zabbix_username }}"
+        password: "{{ mysql_zabbix_password }}"
+        priv: '{{ mysql_zabbix_database }}.*:ALL'
+      when:
+        - mysql_zabbix_username != mysql_master_username
+  when: not mysql_new_installation
+  tags:
+    - db

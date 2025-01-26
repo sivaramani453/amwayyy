@@ -1,0 +1,14 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: False
+  tasks: []
+
+- name: Install ca- roles for ssl securing filebeat-multiline
+  hosts:
+    - filebeat-multiline
+  vars:
+    CA_GROUP: filebeat-multiline
+  roles:
+    - ca-root
+    - ca-cert

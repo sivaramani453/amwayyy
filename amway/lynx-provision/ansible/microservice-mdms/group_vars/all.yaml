@@ -1,0 +1,20 @@
+## data disk options
+pgsql_data_filesystem_type: "xfs"
+pgsql_data_mount_path: "/opt/postgres/data"
+pgsql_data_mount_opts: "defaults,noatime"
+
+## postgresql config options
+pgsql_max_connections: "100"
+
+## docker settings
+docker_registry_name: "nexus.hybris.eia.amway.net:8083"
+docker_registry_username: ""
+docker_registry_password: ""
+    
+## docker image settings
+docker_container_name: "postgresql_mdms_db"
+docker_image_name: "postgres11-mdms"
+docker_image_version: "1.0"
+docker_env_pgsql_database_name: "pdp"
+docker_env_pgsql_username: "pdp_user"
+docker_env_pgsql_password: "pdp_pass"

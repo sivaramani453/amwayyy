@@ -1,0 +1,15 @@
+---
+- hosts: all
+  become: True
+  vars:
+   vault_root_dir: "/opt/vault"
+   vault_bin_dir: "/opt/vault/bin"
+   vault_configuration_dir: "/opt/vault/etc"
+   vault_tls_configuration_dir: "/opt/vault/tls"
+   vault_version: "1.6.5"
+   vault_download_default_path: "/tmp"
+   vault_pidfile_path: "/var/run/vault"
+   vault_version_checksum: "sha256:https://releases.hashicorp.com/vault/{{ vault_version }}/vault_{{ vault_version }}_SHA256SUMS"
+
+  roles:
+   - role: "../roles/vault"

@@ -1,0 +1,41 @@
+---
+- name: Create or Delete Zabbix maintenance during deployment
+  hosts: localhost
+  vars:
+    ansible_python_interpreter: "/usr/bin/env python3"  
+  connection: local
+  gather_facts: no
+
+  tasks:
+    - name: Install required pip package
+      become: True
+      pip:
+        name: zabbix-api
+        executable: "pip3"  
+      tags:
+        - set_maintenance
+        - unset_maintenance
+
+    - name: Create a named maintenance window for hosts www1 and db1, without data collection.
+      zabbix_maintenance:
+        name: "{{ environment_name | lower }}-group-redeploy"
+        host_groups:
+          - "{{ environment_name | lower }}-group"
+        state: present
+        collect_data: True
+        minutes: "{{ zabbix_maintenance_minutes }}"
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+      ignore_errors: yes
+      tags: set_maintenance
+
+    - name: Remove maintenance window by name
+      zabbix_maintenance:
+        name: "{{ environment_name | lower }}-group-redeploy"
+        state: absent
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+      ignore_errors: yes
+      tags: unset_maintenance

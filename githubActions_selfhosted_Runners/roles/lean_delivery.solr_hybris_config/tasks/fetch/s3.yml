@@ -1,0 +1,29 @@
+---
+- name: Download contrib artifact from s3
+  aws_s3:
+    bucket: '{{ solr_patch_transport_s3_bucket }}'
+    object: '{{ solr_patch_transport_s3_path }}/{{ solr_contrib_hybris_patch_name }}'
+    dest: '{{ download_path }}/{{ solr_contrib_hybris_patch_name }}'
+    aws_access_key: '{{ transport_s3_aws_access_key }}'
+    aws_secret_key: '{{ transport_s3_aws_secret_key }}'
+    mode: get
+    overwrite: different
+  retries: 5
+  delay: 2
+
+- name: Download data artifact from s3
+  aws_s3:
+    bucket: '{{ solr_patch_transport_s3_bucket }}'
+    object: '{{ solr_patch_transport_s3_path }}/{{ solr_data_hybris_patch_name }}'
+    dest: '{{ download_path }}/{{ solr_data_hybris_patch_name }}'
+    aws_access_key: '{{ transport_s3_aws_access_key }}'
+    aws_secret_key: '{{ transport_s3_aws_secret_key }}'
+    mode: get
+    overwrite: different
+  retries: 5
+  delay: 2
+
+- name: Downloaded artifact
+  set_fact:
+    solr_hybris_patch_data: '{{ download_path }}/{{ solr_data_hybris_patch_name }}'
+    solr_hybris_patch_contrib: '{{ download_path }}/{{ solr_contrib_hybris_patch_name }}'

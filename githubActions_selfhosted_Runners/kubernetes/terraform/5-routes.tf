@@ -1,0 +1,53 @@
+# Resource: aws_route_table
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.vpc.id
+  route {
+      cidr_block                 = "0.0.0.0/0"
+      nat_gateway_id             = aws_nat_gateway.nat.id
+  }
+
+  tags = {
+    Name = "private"
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.vpc.id
+
+  route {
+      cidr_block                 = "0.0.0.0/0"
+      gateway_id                 = aws_internet_gateway.vpc-igw.id
+  }
+
+  tags = {
+    Name = "public"
+  }
+}
+
+# Resource: aws_route_table_association
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table_association
+resource "aws_route_table_association" "private-us-east-1a" {
+  subnet_id      = aws_subnet.private-subnet-1a.id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_route_table_association" "private-us-east-1b" {
+  subnet_id      = aws_subnet.private-subnet-1b.id
+  route_table_id = aws_route_table.private.id
+}
+resource "aws_route_table_association" "private-us-east-1c" {
+  subnet_id      = aws_subnet.private-subnet-1c.id
+  route_table_id = aws_route_table.private.id
+}
+
+
+resource "aws_route_table_association" "public-us-east-1a" {
+  subnet_id      = aws_subnet.public-us-east-1a.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "public-us-east-1b" {
+  subnet_id      = aws_subnet.public-us-east-1a.id
+  route_table_id = aws_route_table.public.id
+}
