@@ -1,5 +1,0 @@
-- name: Ensure x2go server is present
-  become: true
-  yum:
-    name: x2goserver
-    state: present

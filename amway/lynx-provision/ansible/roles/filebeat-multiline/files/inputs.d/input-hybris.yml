@@ -1,9 +1,0 @@
----
-- type: log
-  enabled: true
-  paths:
-    - /var/log/console*.log
-  fields:
-    logtype: hybris
-    index_name: hybris
-  fields_under_root: true

@@ -1,8 +1,0 @@
----
-- name: Windows instances waiting.
-  gather_facts: False
-  hosts: windows
-  tasks:
-    - name: Wait for system to become reachable
-      wait_for_connection:
-        delay: 240

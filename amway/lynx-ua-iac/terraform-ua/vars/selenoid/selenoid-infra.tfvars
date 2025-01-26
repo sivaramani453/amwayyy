@@ -1,2 +1,0 @@
-project = "selenoid"
-environment = "main"

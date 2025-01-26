@@ -1,7 +1,0 @@
-[solr]
-address-validation-ua-solr-node-0.ru.eia.amway.net
-address-validation-ua-solr-node-1.ru.eia.amway.net
-[zookeeper]
-address-validation-ua-zookeeper-node-0.ru.eia.amway.net
-address-validation-ua-zookeeper-node-1.ru.eia.amway.net
-address-validation-ua-zookeeper-node-2.ru.eia.amway.net

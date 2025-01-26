@@ -1,3 +1,0 @@
----
-default_solr_dest_main_path: /opt
-default_solr_configset_path: '{{ solr_home }}/configsets'

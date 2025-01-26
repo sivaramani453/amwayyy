@@ -1,7 +1,0 @@
-[solr]
-address-validation-eks-dev-ua-solr-node-0.hybris.eia.amway.net
-address-validation-eks-dev-ua-solr-node-1.hybris.eia.amway.net
-[zookeeper]
-address-validation-eks-dev-ua-zookeeper-node-0.hybris.eia.amway.net
-address-validation-eks-dev-ua-zookeeper-node-1.hybris.eia.amway.net
-address-validation-eks-dev-ua-zookeeper-node-2.hybris.eia.amway.net

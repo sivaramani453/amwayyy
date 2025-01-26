@@ -1,7 +1,0 @@
----
-- name: "Update npm to version {{ npm_version }}"
-  become: True
-  npm:
-    name: npm
-    version: "{{ npm_version }}"
-    global: yes   

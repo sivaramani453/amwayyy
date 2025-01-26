@@ -1,6 +1,0 @@
-UPDATE solrendpointurl SET p_url = replace(p_url, 'http://10.1.2.60:8983/solr',   'http://{{ fe1_ip_address }}:{{ solr_master_port }}/solr');
-UPDATE solrendpointurl SET p_url = replace(p_url, 'http://10.1.2.61:8983/solr',   'http://{{ fe2_ip_address }}:{{ solr_master_port }}/solr');
-UPDATE solrendpointurl SET p_url = replace(p_url, 'http://10.1.130.61:8983/solr', 'http://{{ be1_ip_address }}:{{ solr_master_port }}/solr');
-           
-DELETE FROM solrindex;
-DELETE FROM JGROUPSPING;

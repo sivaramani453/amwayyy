@@ -1,9 +1,0 @@
----
-- hosts: 'all'
-
-  roles:
-  - role: '../roles/lean_delivery.docker'
-
-  post_tasks:
-    - name: Configure AMI
-      include_tasks: pl-post-tasks.yml

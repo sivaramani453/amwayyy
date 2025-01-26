@@ -1,4 +1,0 @@
----
-vnc_password: "password123"
-vnc_user: "centos"
-vnc_group: "centos"

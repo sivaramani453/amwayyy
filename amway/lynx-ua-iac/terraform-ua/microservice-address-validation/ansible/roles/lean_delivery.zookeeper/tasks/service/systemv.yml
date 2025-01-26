@@ -1,8 +1,0 @@
----
-- name: SysV deploy script
-  template:
-    src: zookeeper.conf.j2
-    dest: '/etc/init/{{ zk_service_name }}.conf'
-  become: true
-  notify:
-    - restart Zookeeper

@@ -1,5 +1,0 @@
----
-username: "developer"
-public_key_path: "/etc/ansible/ssh/developer_pub.pub"
-private_key_path: "/etc/ansible/ssh/developer_private"
-

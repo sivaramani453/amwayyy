@@ -1,4 +1,0 @@
-zabbix_admin_user: Admin
-zabbix_server_url: "http://127.0.0.1"
-skype_notification_chat: aweu_eia_system_engineering
-notification_time_range: "1-7,09:00-21:00"

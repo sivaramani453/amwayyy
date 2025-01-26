@@ -1,9 +1,0 @@
----
-- name: "Create user"
-  include_tasks: "user.yaml"
-
-- name: "Install packages"
-  include_tasks: "packages.yaml"
-
-- name: "Run github runner"
-  include_tasks: "runner.yaml"

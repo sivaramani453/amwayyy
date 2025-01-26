@@ -1,6 +1,0 @@
-ec2_env_suffix = "ru"
-ec2_private_ip_be1 = "10.130.123.124"
-ec2_private_ip_be2 = "10.130.123.125"
-ec2_private_ip_fe1 = "10.130.123.126"
-ec2_private_ip_fe2 = "10.130.123.127"
-alb_taget_group_hc_path	= "/hac/static/img/favicon.png"

@@ -1,6 +1,0 @@
----
-- name: Start hybris and ensure it is running
-  hosts: all
-
-  roles:
-    - role: "../roles/add_ssh_pub_key"

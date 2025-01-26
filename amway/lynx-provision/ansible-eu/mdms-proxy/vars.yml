@@ -1,4 +1,0 @@
-proxy_listen_port: 1235
-ts3_proxy:
-    server_name: "mdms-ts3-proxy.hybris.eia.amway.net"
-    upstream: "https://mgcdms-eiatest3.intranet.local:4443"

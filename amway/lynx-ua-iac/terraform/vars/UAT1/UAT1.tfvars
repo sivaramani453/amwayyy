@@ -1,7 +1,0 @@
-ec2_private_ip_be1                  = "10.130.123.104"
-ec2_private_ip_be2                  = "10.130.123.105"
-ec2_private_ip_fe1                  = "10.130.123.106"
-ec2_private_ip_fe2                  = "10.130.123.107"
-ec2_env_name                        = "uat"
-ec2_env_suffix                      = "eu"
-lb_listener_forward_certificate_arn = "arn:aws:acm:eu-central-1:860702706577:certificate/efae932f-a7bc-417f-bdd9-95c14f84699f"

@@ -1,8 +1,0 @@
----
-- name: Download and unpack solr config
-  include_tasks: download.yaml
-
-- name: Prepare config files
-  include_tasks: prepare.yaml
-
-

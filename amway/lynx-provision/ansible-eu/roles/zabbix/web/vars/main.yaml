@@ -1,4 +1,0 @@
-# Apache
-apache_user: apache
-apache_group: apache
-mysql_zabbix_agent_user: zabbix-agent

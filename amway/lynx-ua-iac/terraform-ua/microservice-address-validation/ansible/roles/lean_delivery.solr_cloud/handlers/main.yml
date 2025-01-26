@@ -1,8 +1,0 @@
----
-- name: restart Solr Linux
-  systemd:
-    name: '{{ solr_service_name }}'
-    state: restarted
-  become: true
-  when:
-  - solr_service_start
