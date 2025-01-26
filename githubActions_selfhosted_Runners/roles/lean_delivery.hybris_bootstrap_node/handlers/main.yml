@@ -1,8 +1,0 @@
----
-- name: "ensure that hybris service is enabled and running"
-  listen: propagate hybrisd
-  systemd:
-    name: hybrisd
-    daemon_reload: true
-    enabled: true
-  become: true

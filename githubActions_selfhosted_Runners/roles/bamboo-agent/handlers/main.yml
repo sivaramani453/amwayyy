@@ -1,5 +1,0 @@
----
-- name: restart bambooagent
-  systemd:
-    name: bambooagent
-    state: restarted

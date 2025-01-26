@@ -1,9 +1,0 @@
-[Unit]
-Description=X Virtual Frame Buffer Service
-After=network.target
-
-[Service]
-ExecStart=/sbin/runuser -u {{ vnc_user }} -- /usr/bin/xvfb-run -n 1 -s "-ac -screen 0 1920x1080x16" openbox
-
-[Install]
-WantedBy=multi-user.target

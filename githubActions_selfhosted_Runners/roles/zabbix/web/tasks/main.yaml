@@ -1,8 +1,0 @@
----
- - name: "Install Packages"
-   include_tasks: packages.yaml
-
- - name: "Configure Zabbix Web"
-   include_tasks: web.yaml
-
-
